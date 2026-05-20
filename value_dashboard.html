@@ -1,1254 +1,602 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Value Management KPI Dashboard — CR Portfolio</title>
-  <script src="https://cdn.tailwindcss.com"></script>
-  <script src="https://cdn.jsdelivr.net/npm/chart.js@4"></script>
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
-  <style>
-    * { font-family: 'Inter', system-ui, sans-serif; box-sizing: border-box; }
-    body { background: #F1F5F9; }
-
-    /* ── KPI Tiles ── */
-    .kpi-tile {
-      background: white;
-      border-radius: 8px;
-      box-shadow: 0 1px 3px rgba(0,0,0,0.08), 0 1px 2px rgba(0,0,0,0.04);
-      padding: 16px 20px;
-      border-left: 4px solid;
-    }
-    .kpi-tile.orange { border-left-color: #FF6900; }
-    .kpi-tile.blue   { border-left-color: #3B82F6; }
-    .kpi-value { font-size: 30px; font-weight: 800; color: #111827; line-height: 1.1; }
-    .kpi-label { font-size: 11px; color: #6B7280; text-transform: uppercase; letter-spacing: 0.06em; margin-top: 5px; font-weight: 600; }
-    .kpi-sub   { font-size: 11px; color: #9CA3AF; margin-top: 3px; }
-
-    /* ── Scope Bar ── */
-    #scope-bar {
-      background: #1E40AF;
-      color: white;
-      padding: 9px 20px;
-      font-size: 13px;
-      font-weight: 500;
-      border-radius: 6px;
-      letter-spacing: 0.01em;
-    }
-
-    /* ── Section Cards ── */
-    .section-card {
-      background: white;
-      border-radius: 8px;
-      box-shadow: 0 1px 3px rgba(0,0,0,0.07);
-      overflow: hidden;
-    }
-    .section-title {
-      font-size: 12px;
-      font-weight: 700;
-      color: #374151;
-      text-transform: uppercase;
-      letter-spacing: 0.06em;
-    }
-
-    /* ── Heatmap ── */
-    #heatmap-grid {
-      display: grid;
-      grid-template-columns: 195px repeat(7, minmax(78px, 1fr));
-      gap: 2px;
-      min-width: 750px;
-    }
-    .hm-header {
-      background: #F3F4F6;
-      padding: 7px 8px;
-      font-size: 10px;
-      font-weight: 700;
-      color: #4B5563;
-      text-transform: uppercase;
-      letter-spacing: 0.04em;
-      border-radius: 3px;
-      text-align: center;
-    }
-    .hm-header:first-child { text-align: left; }
-    .hm-account {
-      padding: 8px 10px;
-      background: #F9FAFB;
-      border-radius: 3px;
-      display: flex;
-      flex-direction: column;
-      justify-content: center;
-      gap: 1px;
-    }
-    .hm-account-name { font-size: 11px; font-weight: 700; color: #1F2937; line-height: 1.3; }
-    .hm-account-arr  { font-size: 10px; color: #9CA3AF; font-weight: 500; }
-    .hm-cell {
-      padding: 7px 4px;
-      font-size: 10px;
-      font-weight: 700;
-      text-align: center;
-      border-radius: 3px;
-      cursor: default;
-    }
-
-    /* ── Tooltip ── */
-    #hm-tooltip {
-      position: fixed;
-      background: #1F2937;
-      color: white;
-      padding: 8px 12px;
-      border-radius: 6px;
-      font-size: 12px;
-      max-width: 240px;
-      pointer-events: none;
-      z-index: 9000;
-      display: none;
-      box-shadow: 0 4px 12px rgba(0,0,0,0.35);
-      line-height: 1.5;
-    }
-
-    /* ── Filter active ring ── */
-    .filter-active {
-      outline: 2px solid #FF6900 !important;
-      outline-offset: 1px;
-    }
-
-    /* ── Table ── */
-    #account-table { border-collapse: collapse; width: 100%; }
-    #account-table th {
-      cursor: pointer;
-      user-select: none;
-      white-space: nowrap;
-      position: sticky;
-      top: 0;
-      background: #F9FAFB;
-    }
-    #account-table th:hover { background: #F3F4F6; }
-    #account-table th.sort-asc::after  { content: ' ↑'; color: #FF6900; }
-    #account-table th.sort-desc::after { content: ' ↓'; color: #FF6900; }
-    #account-table tbody tr:hover { background: #EFF6FF !important; }
-    .renewal-urgent { color: #DC2626 !important; font-weight: 700; }
-
-    /* ── Insights ── */
-    #insights-body { transition: max-height 0.3s ease; overflow: hidden; }
-    #insights-body.open   { max-height: 500px; }
-    #insights-body.closed { max-height: 0; }
-
-    /* ── Toast ── */
-    #toast {
-      position: fixed;
-      bottom: 24px; right: 24px;
-      background: #111827;
-      color: white;
-      padding: 12px 20px;
-      border-radius: 8px;
-      font-size: 13px;
-      font-weight: 600;
-      box-shadow: 0 4px 16px rgba(0,0,0,0.3);
-      transform: translateY(80px);
-      opacity: 0;
-      transition: all 0.3s ease;
-      z-index: 9999;
-      max-width: 360px;
-    }
-    #toast.show { transform: translateY(0); opacity: 1; }
-
-    /* ── Stage pills in table ── */
-    .stage-pill {
-      font-size: 10px;
-      font-weight: 700;
-      padding: 2px 7px;
-      border-radius: 4px;
-      white-space: nowrap;
-    }
-    .tier-badge {
-      font-size: 10px;
-      font-weight: 700;
-      padding: 2px 7px;
-      border-radius: 4px;
-    }
-  </style>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Value Management KPI Dashboard — CR Portfolio</title>
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0;}
+body{font-family:Inter,system-ui,-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;background:#F1F5F9;color:#111827;font-size:14px;line-height:1.5;}
+/* Layout */
+.wrap{max-width:1440px;margin:0 auto;padding:16px 24px 48px;display:flex;flex-direction:column;gap:14px;}
+.g6{display:grid;grid-template-columns:repeat(6,1fr);gap:12px;}
+.g32{display:grid;grid-template-columns:3fr 2fr;gap:14px;}
+/* Navbar */
+.nav{background:#1A1A2E;position:sticky;top:0;z-index:100;}
+.nav-in{max-width:1440px;margin:0 auto;padding:0 24px;height:52px;display:flex;align-items:center;justify-content:space-between;}
+.logo{width:32px;height:32px;background:#FF6900;border-radius:6px;display:flex;align-items:center;justify-content:center;flex-shrink:0;}
+.nav-title{color:#fff;font-weight:700;font-size:14px;}
+.nav-sub{color:#94A3B8;font-size:11px;font-weight:500;}
+.nav-btns{display:flex;align-items:center;gap:10px;}
+.btn-ol{font-size:12px;padding:6px 14px;border-radius:6px;border:1px solid #4B5563;color:#D1D5DB;background:transparent;cursor:pointer;font-weight:600;font-family:inherit;}
+.btn-ol:hover{color:#fff;border-color:#9CA3AF;}
+.btn-pr{font-size:12px;padding:6px 14px;border-radius:6px;background:#FF6900;color:#fff;border:none;cursor:pointer;font-weight:600;font-family:inherit;}
+.btn-pr:hover{opacity:.88;}
+/* Scope bar */
+#scope-bar{background:#1E40AF;color:#fff;padding:9px 20px;font-size:13px;font-weight:500;border-radius:6px;}
+/* Filter bar */
+.fbar{background:#fff;border-radius:8px;box-shadow:0 1px 3px rgba(0,0,0,.07);padding:11px 20px;display:flex;align-items:center;gap:16px;flex-wrap:wrap;}
+.flabel{font-size:11px;font-weight:700;color:#9CA3AF;text-transform:uppercase;letter-spacing:.06em;}
+.fgrp{display:flex;align-items:center;gap:8px;}
+.fdiv{color:#D1D5DB;}
+.fsel{font-size:12px;border:1px solid #E5E7EB;border-radius:6px;padding:5px 10px;color:#374151;background:#fff;cursor:pointer;font-family:inherit;}
+.fsel:focus{outline:2px solid #FF6900;outline-offset:1px;}
+.fsel.active{outline:2px solid #FF6900;outline-offset:1px;}
+.btn-reset{margin-left:auto;font-size:12px;padding:5px 12px;border-radius:6px;border:1px solid #E5E7EB;color:#6B7280;background:#fff;cursor:pointer;font-weight:600;font-family:inherit;}
+.btn-reset:hover{background:#F3F4F6;}
+/* KPI tiles */
+.sec-lbl{font-size:11px;font-weight:700;color:#9CA3AF;text-transform:uppercase;letter-spacing:.06em;margin-bottom:8px;padding-left:2px;}
+.tile{background:#fff;border-radius:8px;box-shadow:0 1px 3px rgba(0,0,0,.08);padding:16px 20px;border-left:4px solid transparent;}
+.tile.or{border-left-color:#FF6900;}
+.tile.bl{border-left-color:#3B82F6;}
+.tv{font-size:30px;font-weight:800;color:#111827;line-height:1.1;}
+.tl{font-size:11px;color:#6B7280;text-transform:uppercase;letter-spacing:.06em;margin-top:5px;font-weight:600;}
+.ts{font-size:11px;color:#9CA3AF;margin-top:3px;}
+/* Section cards */
+.card{background:#fff;border-radius:8px;box-shadow:0 1px 3px rgba(0,0,0,.07);}
+.ch{padding:12px 20px;border-bottom:1px solid #F3F4F6;display:flex;align-items:center;gap:8px;}
+.ct{font-size:12px;font-weight:700;color:#374151;text-transform:uppercase;letter-spacing:.06em;}
+.cs{font-size:11px;color:#9CA3AF;}
+/* Heatmap */
+.hm-wrap{padding:14px 16px;overflow-x:auto;}
+#hm-grid{display:grid;grid-template-columns:195px repeat(7,minmax(78px,1fr));gap:2px;min-width:750px;}
+.hm-hdr{background:#F3F4F6;padding:7px 8px;font-size:10px;font-weight:700;color:#4B5563;text-transform:uppercase;letter-spacing:.04em;border-radius:3px;text-align:center;}
+.hm-hdr:first-child{text-align:left;}
+.hm-acc{padding:8px 10px;background:#F9FAFB;border-radius:3px;}
+.hm-an{font-size:11px;font-weight:700;color:#1F2937;line-height:1.3;}
+.hm-ar{font-size:10px;color:#9CA3AF;font-weight:500;margin-top:1px;}
+.hm-cell{padding:7px 4px;font-size:10px;font-weight:700;text-align:center;border-radius:3px;cursor:default;}
+.hm-leg{padding:8px 16px 14px;display:flex;flex-wrap:wrap;gap:12px;}
+.hm-li{display:flex;align-items:center;gap:5px;font-size:10px;color:#6B7280;}
+.hm-ld{width:11px;height:11px;border-radius:2px;}
+/* Tooltip */
+#tip{position:fixed;background:#1F2937;color:#fff;padding:8px 12px;border-radius:6px;font-size:12px;max-width:240px;pointer-events:none;z-index:9000;display:none;box-shadow:0 4px 12px rgba(0,0,0,.35);line-height:1.5;}
+/* Insights */
+.ins-hdr{padding:12px 20px;border-bottom:1px solid #F3F4F6;display:flex;align-items:center;justify-content:space-between;}
+.ins-tog{font-size:11px;color:#9CA3AF;background:none;border:none;cursor:pointer;font-weight:600;font-family:inherit;display:flex;align-items:center;gap:4px;}
+.ins-tog:hover{color:#6B7280;}
+#ins-body{overflow:hidden;transition:max-height .3s ease;}
+#ins-body.open{max-height:500px;}
+#ins-body.closed{max-height:0;}
+#ins-list{padding:14px 20px;list-style:none;display:flex;flex-direction:column;gap:8px;}
+.ins-li{display:flex;align-items:flex-start;gap:8px;font-size:13px;color:#374151;}
+.ins-arr{color:#FF6900;flex-shrink:0;margin-top:1px;}
+/* Charts */
+.cp{padding:16px;}
+.csvg{width:100%;overflow:visible;}
+/* Table */
+.tbl-hdr{padding:12px 20px;border-bottom:1px solid #F3F4F6;display:flex;align-items:center;justify-content:space-between;}
+.tbl-cnt{font-size:11px;color:#9CA3AF;font-weight:600;}
+.tbl-wrap{overflow-x:auto;}
+#tbl{border-collapse:collapse;width:100%;}
+#tbl th{cursor:pointer;user-select:none;white-space:nowrap;background:#F9FAFB;padding:10px 10px;font-size:11px;font-weight:700;color:#6B7280;text-transform:uppercase;letter-spacing:.04em;text-align:left;border-bottom:1px solid #E5E7EB;}
+#tbl th:first-child{padding-left:16px;}
+#tbl th:last-child{padding-right:16px;}
+#tbl th:hover{background:#F3F4F6;}
+#tbl th.sa::after{content:' ↑';color:#FF6900;}
+#tbl th.sd::after{content:' ↓';color:#FF6900;}
+#tbl tbody tr{border-bottom:1px solid #F3F4F6;}
+#tbl tbody tr:hover{background:#EFF6FF!important;}
+.ru{color:#DC2626!important;font-weight:700;}
+.spill{font-size:10px;font-weight:700;padding:2px 7px;border-radius:4px;white-space:nowrap;}
+.tbadge{font-size:10px;font-weight:700;padding:2px 7px;border-radius:4px;}
+/* Toast */
+#toast{position:fixed;bottom:24px;right:24px;background:#111827;color:#fff;padding:12px 20px;border-radius:8px;font-size:13px;font-weight:600;box-shadow:0 4px 16px rgba(0,0,0,.3);transform:translateY(80px);opacity:0;transition:all .3s ease;z-index:9999;max-width:360px;}
+#toast.show{transform:translateY(0);opacity:1;}
+</style>
 </head>
 <body>
 
-<!-- ================================================================
-     NAVBAR
-     ================================================================ -->
-<header style="background:#1A1A2E; position:sticky; top:0; z-index:100;">
-  <div style="max-width:1440px; margin:0 auto; padding:0 24px; height:52px; display:flex; align-items:center; justify-content:space-between;">
-    <div style="display:flex; align-items:center; gap:12px;">
-      <div style="width:32px; height:32px; background:#FF6900; border-radius:6px; display:flex; align-items:center; justify-content:center; flex-shrink:0;">
+<nav class="nav">
+  <div class="nav-in">
+    <div style="display:flex;align-items:center;gap:12px;">
+      <div class="logo">
         <svg width="18" height="18" viewBox="0 0 24 24" fill="none">
           <rect x="3" y="3" width="7" height="7" rx="1" fill="white"/>
-          <rect x="14" y="3" width="7" height="7" rx="1" fill="white" opacity="0.7"/>
-          <rect x="3" y="14" width="7" height="7" rx="1" fill="white" opacity="0.7"/>
+          <rect x="14" y="3" width="7" height="7" rx="1" fill="white" opacity=".7"/>
+          <rect x="3" y="14" width="7" height="7" rx="1" fill="white" opacity=".7"/>
           <rect x="14" y="14" width="7" height="7" rx="1" fill="white"/>
         </svg>
       </div>
       <div>
-        <div style="color:white; font-weight:700; font-size:14px; line-height:1.2;">Value Management KPI Dashboard</div>
-        <div style="color:#94A3B8; font-size:11px; font-weight:500;">CS Mexico · CR Portfolio</div>
+        <div class="nav-title">Value Management KPI Dashboard</div>
+        <div class="nav-sub">CS Mexico · CR Portfolio</div>
       </div>
     </div>
-    <div style="display:flex; align-items:center; gap:10px;">
-      <button onclick="exportCSV()" style="font-size:12px; padding:6px 14px; border-radius:6px; border:1px solid #4B5563; color:#D1D5DB; background:transparent; cursor:pointer; font-weight:600;" onmouseover="this.style.color='white';this.style.borderColor='#9CA3AF'" onmouseout="this.style.color='#D1D5DB';this.style.borderColor='#4B5563'">
-        ↓ Export CSV
-      </button>
-      <button onclick="document.getElementById('csv-upload').click()" style="font-size:12px; padding:6px 14px; border-radius:6px; background:#FF6900; color:white; border:none; cursor:pointer; font-weight:600;" onmouseover="this.style.opacity='0.85'" onmouseout="this.style.opacity='1'">
-        ↑ Upload CSV
-      </button>
-      <input id="csv-upload" type="file" accept=".csv" style="display:none">
+    <div class="nav-btns">
+      <button class="btn-ol" onclick="exportCSV()">&#8595; Export CSV</button>
+      <button class="btn-pr" onclick="document.getElementById('fu').click()">&#8593; Upload CSV</button>
+      <input id="fu" type="file" accept=".csv" style="display:none">
     </div>
   </div>
-</header>
+</nav>
 
-<div style="max-width:1440px; margin:0 auto; padding:16px 24px 40px; display:flex; flex-direction:column; gap:14px;">
+<div class="wrap">
 
-  <!-- ================================================================
-       SCOPE BAR
-       ================================================================ -->
-  <div id="scope-bar">Showing: All Accounts — loading…</div>
+  <div id="scope-bar">Showing: All Accounts &#8212; loading&#8230;</div>
 
-  <!-- ================================================================
-       FILTER BAR
-       ================================================================ -->
-  <div class="section-card" style="padding:12px 20px; display:flex; align-items:center; gap:16px; flex-wrap:wrap;">
-    <span style="font-size:12px; font-weight:700; color:#6B7280; text-transform:uppercase; letter-spacing:0.06em;">View by:</span>
-
-    <div style="display:flex; align-items:center; gap:8px;">
-      <label style="font-size:11px; color:#9CA3AF; font-weight:600; text-transform:uppercase; letter-spacing:0.04em;">Team</label>
-      <select id="filter-team" onchange="onFilterChange('team',this.value)" style="font-size:12px; border:1px solid #E5E7EB; border-radius:6px; padding:5px 10px; color:#374151; background:white; cursor:pointer; outline:none;">
-        <option value="">All</option>
-      </select>
+  <div class="fbar">
+    <span class="flabel">View by:</span>
+    <div class="fgrp">
+      <span class="flabel">Team</span>
+      <select id="f-team" class="fsel" onchange="onFC('team',this.value)"><option value="">All</option></select>
     </div>
-
-    <div style="color:#D1D5DB;">|</div>
-
-    <div style="display:flex; align-items:center; gap:8px;">
-      <label style="font-size:11px; color:#9CA3AF; font-weight:600; text-transform:uppercase; letter-spacing:0.04em;">CSM</label>
-      <select id="filter-csm" onchange="onFilterChange('csm',this.value)" style="font-size:12px; border:1px solid #E5E7EB; border-radius:6px; padding:5px 10px; color:#374151; background:white; cursor:pointer; outline:none;">
-        <option value="">All</option>
-      </select>
+    <span class="fdiv">|</span>
+    <div class="fgrp">
+      <span class="flabel">CSM</span>
+      <select id="f-csm" class="fsel" onchange="onFC('csm',this.value)"><option value="">All</option></select>
     </div>
-
-    <div style="color:#D1D5DB;">|</div>
-
-    <div style="display:flex; align-items:center; gap:8px;">
-      <label style="font-size:11px; color:#9CA3AF; font-weight:600; text-transform:uppercase; letter-spacing:0.04em;">Tier</label>
-      <select id="filter-tier" onchange="onFilterChange('tier',this.value)" style="font-size:12px; border:1px solid #E5E7EB; border-radius:6px; padding:5px 10px; color:#374151; background:white; cursor:pointer; outline:none;">
+    <span class="fdiv">|</span>
+    <div class="fgrp">
+      <span class="flabel">Tier</span>
+      <select id="f-tier" class="fsel" onchange="onFC('tier',this.value)">
         <option value="">All Tiers</option>
-        <option value="Elite">Elite</option>
-        <option value="Premier">Premier</option>
-        <option value="Plus">Plus</option>
-        <option value="Starter">Starter</option>
+        <option>Elite</option><option>Premier</option><option>Plus</option><option>Starter</option>
       </select>
     </div>
-
-    <button onclick="resetFilters()" style="margin-left:auto; font-size:12px; padding:5px 12px; border-radius:6px; border:1px solid #E5E7EB; color:#6B7280; background:white; cursor:pointer; font-weight:600;" onmouseover="this.style.background='#F3F4F6'" onmouseout="this.style.background='white'">
-      Reset
-    </button>
+    <button class="btn-reset" onclick="resetF()">Reset</button>
   </div>
 
-  <!-- ================================================================
-       KPI ROW 1 — Portfolio Health
-       ================================================================ -->
+  <!-- KPI Row 1 -->
   <div>
-    <div style="font-size:11px; font-weight:700; color:#9CA3AF; text-transform:uppercase; letter-spacing:0.06em; margin-bottom:8px; padding-left:2px;">Portfolio Health</div>
-    <div style="display:grid; grid-template-columns:repeat(6,1fr); gap:12px;">
-      <div class="kpi-tile orange">
-        <div class="kpi-value" id="kpi-total-arr">—</div>
-        <div class="kpi-label">Total ARR in Scope</div>
-      </div>
-      <div class="kpi-tile orange">
-        <div class="kpi-value" id="kpi-account-count">—</div>
-        <div class="kpi-label">Accounts in Scope</div>
-      </div>
-      <div class="kpi-tile orange">
-        <div class="kpi-value" id="kpi-at-risk">—</div>
-        <div class="kpi-label">Accounts at Risk</div>
-        <div class="kpi-sub" id="kpi-at-risk-sub"></div>
-      </div>
-      <div class="kpi-tile orange">
-        <div class="kpi-value" id="kpi-coverage">—</div>
-        <div class="kpi-label">Value Program Coverage</div>
-      </div>
-      <div class="kpi-tile orange">
-        <div class="kpi-value" id="kpi-avg-programs">—</div>
-        <div class="kpi-label">Avg Programs / Account</div>
-      </div>
-      <div class="kpi-tile orange">
-        <div class="kpi-value" id="kpi-renewals">—</div>
-        <div class="kpi-label">Renewals This Quarter</div>
-      </div>
+    <div class="sec-lbl">Portfolio Health</div>
+    <div class="g6">
+      <div class="tile or"><div class="tv" id="k-arr">&#8212;</div><div class="tl">Total ARR in Scope</div></div>
+      <div class="tile or"><div class="tv" id="k-n">&#8212;</div><div class="tl">Accounts in Scope</div></div>
+      <div class="tile or"><div class="tv" id="k-risk">&#8212;</div><div class="tl">Accounts at Risk</div><div class="ts" id="k-risk-s"></div></div>
+      <div class="tile or"><div class="tv" id="k-cov">&#8212;</div><div class="tl">Value Program Coverage</div></div>
+      <div class="tile or"><div class="tv" id="k-avg">&#8212;</div><div class="tl">Avg Programs / Account</div></div>
+      <div class="tile or"><div class="tv" id="k-ren">&#8212;</div><div class="tl">Renewals This Quarter</div></div>
     </div>
   </div>
 
-  <!-- ================================================================
-       KPI ROW 2 — Program Depth
-       ================================================================ -->
+  <!-- KPI Row 2 -->
   <div>
-    <div style="font-size:11px; font-weight:700; color:#9CA3AF; text-transform:uppercase; letter-spacing:0.06em; margin-bottom:8px; padding-left:2px;">Program Depth</div>
-    <div style="display:grid; grid-template-columns:repeat(6,1fr); gap:12px;">
-      <div class="kpi-tile blue">
-        <div class="kpi-value" id="kpi-safety">—</div>
-        <div class="kpi-label">Safety Active</div>
-      </div>
-      <div class="kpi-tile blue">
-        <div class="kpi-value" id="kpi-fuel">—</div>
-        <div class="kpi-label">Fuel Active</div>
-      </div>
-      <div class="kpi-tile blue">
-        <div class="kpi-value" id="kpi-maintenance">—</div>
-        <div class="kpi-label">Maintenance Active</div>
-      </div>
-      <div class="kpi-tile blue">
-        <div class="kpi-value" id="kpi-two-plus">—</div>
-        <div class="kpi-label">Accounts 2+ Programs</div>
-      </div>
-      <div class="kpi-tile blue">
-        <div class="kpi-value" id="kpi-zero-programs">—</div>
-        <div class="kpi-label">Accounts 0 Programs</div>
-      </div>
-      <div class="kpi-tile blue">
-        <div class="kpi-value" id="kpi-goals-personas">—</div>
-        <div class="kpi-label">Goals &amp; Personas Set</div>
-      </div>
+    <div class="sec-lbl">Program Depth</div>
+    <div class="g6">
+      <div class="tile bl"><div class="tv" id="k-saf">&#8212;</div><div class="tl">Safety Active</div></div>
+      <div class="tile bl"><div class="tv" id="k-fue">&#8212;</div><div class="tl">Fuel Active</div></div>
+      <div class="tile bl"><div class="tv" id="k-mai">&#8212;</div><div class="tl">Maintenance Active</div></div>
+      <div class="tile bl"><div class="tv" id="k-2p">&#8212;</div><div class="tl">Accounts 2+ Programs</div></div>
+      <div class="tile bl"><div class="tv" id="k-0p">&#8212;</div><div class="tl">Accounts 0 Programs</div></div>
+      <div class="tile bl"><div class="tv" id="k-gp">&#8212;</div><div class="tl">Goals &amp; Personas Set</div></div>
     </div>
   </div>
 
-  <!-- ================================================================
-       INSIGHTS PANEL
-       ================================================================ -->
-  <div class="section-card">
-    <div style="padding:12px 20px; display:flex; align-items:center; justify-content:space-between; border-bottom:1px solid #F3F4F6;">
-      <div style="display:flex; align-items:center; gap:8px;">
-        <span style="font-size:16px;">💡</span>
-        <span class="section-title">Portfolio Insights</span>
+  <!-- Insights -->
+  <div class="card">
+    <div class="ins-hdr">
+      <div style="display:flex;align-items:center;gap:8px;">
+        <span style="font-size:16px;">&#128161;</span>
+        <span class="ct">Portfolio Insights</span>
       </div>
-      <button onclick="toggleInsights()" id="insights-btn" style="font-size:11px; color:#9CA3AF; background:none; border:none; cursor:pointer; font-weight:600; display:flex; align-items:center; gap:4px;">
-        <span id="insights-btn-label">Collapse</span>
-        <span id="insights-btn-icon">▲</span>
+      <button class="ins-tog" onclick="toggleIns()">
+        <span id="ins-lbl">Collapse</span> <span id="ins-ico">&#9650;</span>
       </button>
     </div>
-    <div id="insights-body" class="open">
-      <ul id="insights-list" style="padding:14px 20px; margin:0; list-style:none; display:flex; flex-direction:column; gap:8px;"></ul>
-    </div>
+    <div id="ins-body" class="open"><ul id="ins-list"></ul></div>
   </div>
 
-  <!-- ================================================================
-       CHARTS ROW 1 — Heatmap (60%) + Donut (40%)
-       ================================================================ -->
-  <div style="display:grid; grid-template-columns:3fr 2fr; gap:14px;">
-
-    <!-- Heatmap -->
-    <div class="section-card">
-      <div style="padding:12px 20px; border-bottom:1px solid #F3F4F6; display:flex; align-items:baseline; gap:8px;">
-        <span class="section-title">Value Program Heatmap</span>
-        <span style="font-size:11px; color:#9CA3AF;">Accounts × Programs · sorted by ARR</span>
-      </div>
-      <div style="padding:14px 16px; overflow-x:auto;">
-        <div id="heatmap-grid"></div>
-      </div>
-      <!-- Legend -->
-      <div style="padding:8px 16px 14px; display:flex; flex-wrap:wrap; gap:12px;">
-        <div style="display:flex;align-items:center;gap:5px;"><div style="width:11px;height:11px;border-radius:2px;background:#E5E7EB;"></div><span style="font-size:10px;color:#6B7280;">NA</span></div>
-        <div style="display:flex;align-items:center;gap:5px;"><div style="width:11px;height:11px;border-radius:2px;background:#BFDBFE;"></div><span style="font-size:10px;color:#6B7280;">Implementing</span></div>
-        <div style="display:flex;align-items:center;gap:5px;"><div style="width:11px;height:11px;border-radius:2px;background:#3B82F6;"></div><span style="font-size:10px;color:#6B7280;">Launch</span></div>
-        <div style="display:flex;align-items:center;gap:5px;"><div style="width:11px;height:11px;border-radius:2px;background:#FDE68A;"></div><span style="font-size:10px;color:#6B7280;">Testing</span></div>
-        <div style="display:flex;align-items:center;gap:5px;"><div style="width:11px;height:11px;border-radius:2px;background:#FB923C;"></div><span style="font-size:10px;color:#6B7280;">Develop</span></div>
-        <div style="display:flex;align-items:center;gap:5px;"><div style="width:11px;height:11px;border-radius:2px;background:#22C55E;"></div><span style="font-size:10px;color:#6B7280;">Mature</span></div>
+  <!-- Charts row 1: Heatmap + Donut -->
+  <div class="g32">
+    <div class="card">
+      <div class="ch"><span class="ct">Value Program Heatmap</span><span class="cs">Accounts x Programs &middot; sorted by ARR</span></div>
+      <div class="hm-wrap"><div id="hm-grid"></div></div>
+      <div class="hm-leg">
+        <div class="hm-li"><div class="hm-ld" style="background:#E5E7EB"></div>NA</div>
+        <div class="hm-li"><div class="hm-ld" style="background:#BFDBFE"></div>Implementing</div>
+        <div class="hm-li"><div class="hm-ld" style="background:#3B82F6"></div>Launch</div>
+        <div class="hm-li"><div class="hm-ld" style="background:#FDE68A"></div>Testing</div>
+        <div class="hm-li"><div class="hm-ld" style="background:#FB923C"></div>Develop</div>
+        <div class="hm-li"><div class="hm-ld" style="background:#22C55E"></div>Mature</div>
       </div>
     </div>
-
-    <!-- Donut -->
-    <div class="section-card" style="display:flex; flex-direction:column;">
-      <div style="padding:12px 20px; border-bottom:1px solid #F3F4F6; display:flex; align-items:baseline; gap:8px;">
-        <span class="section-title">Portfolio Sentiment</span>
-        <span style="font-size:11px; color:#9CA3AF;">ARR-weighted</span>
-      </div>
-      <div style="flex:1; display:flex; flex-direction:column; align-items:center; justify-content:center; padding:20px 16px 16px;">
-        <div style="position:relative; width:100%; height:230px;">
-          <canvas id="donut-chart"></canvas>
-          <div style="position:absolute; top:50%; left:50%; transform:translate(-50%,-62%); text-align:center; pointer-events:none;">
-            <div style="font-size:10px; color:#9CA3AF; font-weight:600; text-transform:uppercase; letter-spacing:0.04em;">Total ARR</div>
-            <div id="donut-total-arr" style="font-size:18px; font-weight:800; color:#111827;">—</div>
-          </div>
-        </div>
+    <div class="card" style="display:flex;flex-direction:column;">
+      <div class="ch"><span class="ct">Portfolio Sentiment</span><span class="cs">ARR-weighted</span></div>
+      <div style="flex:1;display:flex;align-items:center;justify-content:center;padding:16px;">
+        <svg id="donut-svg" class="csvg" viewBox="0 0 240 270" style="max-width:240px;"></svg>
       </div>
     </div>
   </div>
 
-  <!-- ================================================================
-       CHARTS ROW 2 — Value Cycle Bar + ARR by Tier
-       ================================================================ -->
-  <div style="display:grid; grid-template-columns:3fr 2fr; gap:14px;">
-
-    <div class="section-card">
-      <div style="padding:12px 20px; border-bottom:1px solid #F3F4F6; display:flex; align-items:baseline; gap:8px;">
-        <span class="section-title">Value Cycle Distribution</span>
-        <span style="font-size:11px; color:#9CA3AF;">Accounts per lifecycle stage</span>
-      </div>
-      <div style="padding:16px; height:190px;">
-        <canvas id="value-cycle-chart"></canvas>
-      </div>
+  <!-- Charts row 2: Value Cycle + ARR by Tier -->
+  <div class="g32">
+    <div class="card">
+      <div class="ch"><span class="ct">Value Cycle Distribution</span><span class="cs">Accounts per lifecycle stage</span></div>
+      <div class="cp"><svg id="vc-svg" class="csvg" viewBox="0 0 380 200"></svg></div>
     </div>
-
-    <div class="section-card">
-      <div style="padding:12px 20px; border-bottom:1px solid #F3F4F6; display:flex; align-items:baseline; gap:8px;">
-        <span class="section-title">ARR by CS Tier</span>
-        <span style="font-size:11px; color:#9CA3AF;">Stacked by sentiment</span>
-      </div>
-      <div style="padding:16px; height:190px;">
-        <canvas id="arr-tier-chart"></canvas>
-      </div>
+    <div class="card">
+      <div class="ch"><span class="ct">ARR by CS Tier</span><span class="cs">Stacked by sentiment</span></div>
+      <div class="cp"><svg id="tier-svg" class="csvg" viewBox="0 0 320 200"></svg></div>
     </div>
   </div>
 
-  <!-- ================================================================
-       ACCOUNT TABLE
-       ================================================================ -->
-  <div class="section-card">
-    <div style="padding:12px 20px; border-bottom:1px solid #F3F4F6; display:flex; align-items:center; justify-content:space-between;">
-      <span class="section-title">Account Details</span>
-      <span id="table-count" style="font-size:11px; color:#9CA3AF; font-weight:600;"></span>
+  <!-- Table -->
+  <div class="card">
+    <div class="tbl-hdr">
+      <span class="ct">Account Details</span>
+      <span id="tbl-cnt" class="tbl-cnt"></span>
     </div>
-    <div style="overflow-x:auto;">
-      <table id="account-table">
-        <thead>
-          <tr style="border-bottom:1px solid #E5E7EB;">
-            <th data-col="name"                    style="padding:10px 16px; text-align:left;   font-size:11px; font-weight:700; color:#6B7280; text-transform:uppercase; letter-spacing:0.04em;">Account Name</th>
-            <th data-col="csm"                     style="padding:10px 10px; text-align:left;   font-size:11px; font-weight:700; color:#6B7280; text-transform:uppercase; letter-spacing:0.04em;">CSM</th>
-            <th data-col="arr"                     style="padding:10px 10px; text-align:right;  font-size:11px; font-weight:700; color:#6B7280; text-transform:uppercase; letter-spacing:0.04em;">ARR</th>
-            <th data-col="tier"                    style="padding:10px 10px; text-align:left;   font-size:11px; font-weight:700; color:#6B7280; text-transform:uppercase; letter-spacing:0.04em;">Tier</th>
-            <th data-col="upcoming_renewal_date"   style="padding:10px 10px; text-align:left;   font-size:11px; font-weight:700; color:#6B7280; text-transform:uppercase; letter-spacing:0.04em;">Renewal Date</th>
-            <th data-col="display_sentiment"       style="padding:10px 10px; text-align:left;   font-size:11px; font-weight:700; color:#6B7280; text-transform:uppercase; letter-spacing:0.04em;">Sentiment</th>
-            <th data-col="value_cycle"             style="padding:10px 10px; text-align:left;   font-size:11px; font-weight:700; color:#6B7280; text-transform:uppercase; letter-spacing:0.04em;">Value Cycle</th>
-            <th data-col="safety"                  style="padding:10px 10px; text-align:left;   font-size:11px; font-weight:700; color:#6B7280; text-transform:uppercase; letter-spacing:0.04em;">Safety</th>
-            <th data-col="fuel"                    style="padding:10px 10px; text-align:left;   font-size:11px; font-weight:700; color:#6B7280; text-transform:uppercase; letter-spacing:0.04em;">Fuel</th>
-            <th data-col="maintenance"             style="padding:10px 10px; text-align:left;   font-size:11px; font-weight:700; color:#6B7280; text-transform:uppercase; letter-spacing:0.04em;">Maint.</th>
-            <th data-col="programs_active"         style="padding:10px 10px; text-align:center; font-size:11px; font-weight:700; color:#6B7280; text-transform:uppercase; letter-spacing:0.04em;">Programs</th>
-            <th data-col="priority_next_program"   style="padding:10px 10px; text-align:left;   font-size:11px; font-weight:700; color:#6B7280; text-transform:uppercase; letter-spacing:0.04em;">Priority Next</th>
-            <th data-col="notes"                   style="padding:10px 16px; text-align:left;   font-size:11px; font-weight:700; color:#6B7280; text-transform:uppercase; letter-spacing:0.04em;">Notes</th>
-          </tr>
-        </thead>
-        <tbody id="table-body"></tbody>
+    <div class="tbl-wrap">
+      <table id="tbl">
+        <thead><tr>
+          <th data-col="name">Account Name</th>
+          <th data-col="csm">CSM</th>
+          <th data-col="arr" style="text-align:right;">ARR</th>
+          <th data-col="tier">Tier</th>
+          <th data-col="upcoming_renewal_date">Renewal</th>
+          <th data-col="dsent">Sentiment</th>
+          <th data-col="value_cycle">Value Cycle</th>
+          <th data-col="safety">Safety</th>
+          <th data-col="fuel">Fuel</th>
+          <th data-col="maintenance">Maint.</th>
+          <th data-col="pc" style="text-align:center;">Programs</th>
+          <th data-col="priority_next_program">Priority Next</th>
+          <th data-col="notes">Notes</th>
+        </tr></thead>
+        <tbody id="tbody"></tbody>
       </table>
     </div>
   </div>
 
-</div><!-- /container -->
+</div>
 
-<!-- Heatmap Tooltip -->
-<div id="hm-tooltip"></div>
-
-<!-- Toast -->
+<div id="tip"></div>
 <div id="toast"></div>
 
-<!-- ================================================================
-     SCRIPT
-     ================================================================ -->
 <script>
 'use strict';
 
-// ================================================================
-// SECTION 1: CONSTANTS & CONFIG
-// ================================================================
-
-const TODAY = (() => { const d = new Date(); d.setHours(0,0,0,0); return d; })();
-
-const PROGRAMS       = ['safety','fleet_security','fuel','maintenance','utilization','compliance','routing'];
-const PROGRAM_LABELS = ['Safety','Fleet Security','Fuel','Maintenance','Utilization','Compliance','Routing'];
-const STAGES         = ['NA','Implementing','Launch','Testing','Develop','Mature'];
-
-const STAGE_STYLE = {
-  'NA':           { bg:'#E5E7EB', text:'#9CA3AF' },
-  'Implementing': { bg:'#BFDBFE', text:'#1E40AF' },
-  'Launch':       { bg:'#3B82F6', text:'#FFFFFF' },
-  'Testing':      { bg:'#FDE68A', text:'#92400E' },
-  'Develop':      { bg:'#FB923C', text:'#FFFFFF' },
-  'Mature':       { bg:'#22C55E', text:'#FFFFFF' },
+// ── CONSTANTS ──────────────────────────────────────────────
+const TODAY=(()=>{const d=new Date();d.setHours(0,0,0,0);return d;})();
+const PROGS    =['safety','fleet_security','fuel','maintenance','utilization','compliance','routing'];
+const PROG_LBL =['Safety','Fleet Security','Fuel','Maintenance','Utilization','Compliance','Routing'];
+const STAGES   =['NA','Implementing','Launch','Testing','Develop','Mature'];
+const SS={
+  NA:          {bg:'#E5E7EB',tx:'#9CA3AF'},
+  Implementing:{bg:'#BFDBFE',tx:'#1E40AF'},
+  Launch:      {bg:'#3B82F6',tx:'#FFFFFF'},
+  Testing:     {bg:'#FDE68A',tx:'#92400E'},
+  Develop:     {bg:'#FB923C',tx:'#FFFFFF'},
+  Mature:      {bg:'#22C55E',tx:'#FFFFFF'},
 };
-const STAGE_CHART_BG = ['#E5E7EB','#BFDBFE','#3B82F6','#FDE68A','#FB923C','#22C55E'];
+const SC_BG=['#E5E7EB','#BFDBFE','#3B82F6','#FDE68A','#FB923C','#22C55E'];
+const SCOL={Green:'#22C55E',Yellow:'#FBBF24',Red:'#EF4444'};
 
-const SENTIMENT_COLOR = { 'Green':'#22C55E', 'Yellow':'#FBBF24', 'Red':'#EF4444' };
-
-// ================================================================
-// SECTION 2: SEED DATA — replace via CSV upload
-// ================================================================
-
-const SEED_ACCOUNTS = [
-  {
-    id:'grupo-paquetexpress', name:'GRUPO PAQUETEXPRESS', csm:'CR', tier:'Elite',
-    arr:1368881, child_account:false,
-    current_sentiment:'Green', new_sentiment:'Green',
-    upcoming_renewal_date:'2027-03-15', value_cycle:'Develop',
-    safety:'Develop', fleet_security:'NA', fuel:'Testing',
-    maintenance:'NA', utilization:'NA', compliance:'Testing', routing:'Testing',
-    personas:true, goals_defined:true,
-    priority_next_program:'Fuel',
-    notes:'Safety: New Value Goals for 2025. VGs: Fuel Program.'
-  },
-  {
-    id:'proteina-animal', name:'PROTEÍNA ANIMAL', csm:'CR', tier:'Elite',
-    arr:1006000, child_account:false,
-    current_sentiment:'Green', new_sentiment:'Green',
-    upcoming_renewal_date:'2026-09-30', value_cycle:'Launch',
-    safety:'Testing', fleet_security:'NA', fuel:'NA',
-    maintenance:'NA', utilization:'NA', compliance:'NA', routing:'NA',
-    personas:true, goals_defined:true,
-    priority_next_program:'Fuel',
-    notes:'Strong safety adoption. Expand to fuel next cycle.'
-  },
-  {
-    id:'tropper', name:'TROPPER', csm:'CR', tier:'Elite',
-    arr:702000, child_account:false,
-    current_sentiment:'Green', new_sentiment:'Green',
-    upcoming_renewal_date:'2026-11-15', value_cycle:'Launch',
-    safety:'Testing', fleet_security:'NA', fuel:'Implementing',
-    maintenance:'NA', utilization:'NA', compliance:'NA', routing:'NA',
-    personas:true, goals_defined:true,
-    priority_next_program:'Fuel',
-    notes:'Fuel program early implementation. Safety in testing.'
-  },
-  {
-    id:'aguilas-del-desierto', name:'AGUILAS DEL DESIERTO', csm:'CR', tier:'Elite',
-    arr:714000, child_account:false,
-    current_sentiment:'Green', new_sentiment:'Green',
-    upcoming_renewal_date:'2027-01-20', value_cycle:'Develop',
-    safety:'NA', fleet_security:'NA', fuel:'Launch',
-    maintenance:'NA', utilization:'NA', compliance:'NA', routing:'NA',
-    personas:true, goals_defined:true,
-    priority_next_program:'Safety',
-    notes:'Fuel program leading. Safety next priority.'
-  },
-  {
-    id:'transportes-fema', name:'TRANSPORTES FEMA', csm:'CR', tier:'Premier',
-    arr:571000, child_account:false,
-    current_sentiment:'Green', new_sentiment:'Green',
-    upcoming_renewal_date:'2026-12-30', value_cycle:'Develop',
-    safety:'NA', fleet_security:'NA', fuel:'NA',
-    maintenance:'NA', utilization:'NA', compliance:'NA', routing:'NA',
-    personas:false, goals_defined:true,
-    priority_next_program:'Safety',
-    notes:'No programs active yet. Safety program scoped for Q3.'
-  },
-  {
-    id:'autotransportes-pilot', name:'AUTOTRANSPORTES PILOT', csm:'CR', tier:'Premier',
-    arr:386459, child_account:false,
-    current_sentiment:'Red', new_sentiment:'Red',
-    upcoming_renewal_date:'2026-07-15', value_cycle:'Testing',
-    safety:'NA', fleet_security:'NA', fuel:'NA',
-    maintenance:'NA', utilization:'NA', compliance:'NA', routing:'NA',
-    personas:false, goals_defined:false,
-    priority_next_program:'Safety',
-    notes:'At risk — no programs active. Needs executive alignment.'
-  },
-  {
-    id:'qualtia-alimentos', name:'QUALTIA ALIMENTOS', csm:'CR', tier:'Premier',
-    arr:550000, child_account:false,
-    current_sentiment:'Yellow', new_sentiment:'Green',
-    upcoming_renewal_date:'2027-02-28', value_cycle:'Launch',
-    safety:'NA', fleet_security:'NA', fuel:'NA',
-    maintenance:'NA', utilization:'NA', compliance:'NA', routing:'NA',
-    personas:true, goals_defined:true,
-    priority_next_program:'Safety',
-    notes:'Sentiment improving Yellow → Green. Kick-off planned Q3.'
-  },
-  {
-    id:'gcc-transporte', name:'GCC TRANSPORTE', csm:'CR', tier:'Premier',
-    arr:164000, child_account:false,
-    current_sentiment:'Green', new_sentiment:'Green',
-    upcoming_renewal_date:'2026-10-30', value_cycle:'Launch',
-    safety:'Testing', fleet_security:'NA', fuel:'NA',
-    maintenance:'NA', utilization:'NA', compliance:'NA', routing:'NA',
-    personas:true, goals_defined:true,
-    priority_next_program:'Fuel',
-    notes:'Safety in testing. Small account with strong engagement.'
-  },
-  {
-    id:'arrendadora-umx', name:'ARRENDADORA UMX', csm:'CR', tier:'Premier',
-    arr:431000, child_account:false,
-    current_sentiment:'Green', new_sentiment:'Green',
-    upcoming_renewal_date:'2026-12-15', value_cycle:'Launch',
-    safety:'Launch', fleet_security:'NA', fuel:'NA',
-    maintenance:'Testing', utilization:'NA', compliance:'NA', routing:'NA',
-    personas:true, goals_defined:true,
-    priority_next_program:'Fuel',
-    notes:'Safety at launch. Maintenance testing. Strong partnership.'
-  },
-  {
-    id:'punto-a-punto-t2', name:'PUNTO A PUNTO T2', csm:'CR', tier:'Premier',
-    arr:257975, child_account:false,
-    current_sentiment:'Yellow', new_sentiment:'Yellow',
-    upcoming_renewal_date:'2026-08-10', value_cycle:'NA',
-    safety:'NA', fleet_security:'NA', fuel:'NA',
-    maintenance:'NA', utilization:'NA', compliance:'NA', routing:'NA',
-    personas:false, goals_defined:false,
-    priority_next_program:'Safety',
-    notes:'No value programs defined. Yellow risk. Needs QBR.'
-  },
+// ── SEED DATA ─────────────────────────────────────────────
+const SEED=[
+  {id:'gp',name:'GRUPO PAQUETEXPRESS',csm:'CR',tier:'Elite',arr:1368881,child_account:false,current_sentiment:'Green',new_sentiment:'Green',upcoming_renewal_date:'2027-03-15',value_cycle:'Develop',safety:'Develop',fleet_security:'NA',fuel:'Testing',maintenance:'NA',utilization:'NA',compliance:'Testing',routing:'Testing',personas:true,goals_defined:true,priority_next_program:'Fuel',notes:'Safety: New Value Goals for 2025. VGs: Fuel Program.'},
+  {id:'pa',name:'PROTEINA ANIMAL',csm:'CR',tier:'Elite',arr:1006000,child_account:false,current_sentiment:'Green',new_sentiment:'Green',upcoming_renewal_date:'2026-09-30',value_cycle:'Launch',safety:'Testing',fleet_security:'NA',fuel:'NA',maintenance:'NA',utilization:'NA',compliance:'NA',routing:'NA',personas:true,goals_defined:true,priority_next_program:'Fuel',notes:'Strong safety adoption. Expand to fuel next cycle.'},
+  {id:'tr',name:'TROPPER',csm:'CR',tier:'Elite',arr:702000,child_account:false,current_sentiment:'Green',new_sentiment:'Green',upcoming_renewal_date:'2026-11-15',value_cycle:'Launch',safety:'Testing',fleet_security:'NA',fuel:'Implementing',maintenance:'NA',utilization:'NA',compliance:'NA',routing:'NA',personas:true,goals_defined:true,priority_next_program:'Fuel',notes:'Fuel program early implementation. Safety in testing.'},
+  {id:'ad',name:'AGUILAS DEL DESIERTO',csm:'CR',tier:'Elite',arr:714000,child_account:false,current_sentiment:'Green',new_sentiment:'Green',upcoming_renewal_date:'2027-01-20',value_cycle:'Develop',safety:'NA',fleet_security:'NA',fuel:'Launch',maintenance:'NA',utilization:'NA',compliance:'NA',routing:'NA',personas:true,goals_defined:true,priority_next_program:'Safety',notes:'Fuel program leading. Safety next priority.'},
+  {id:'tf',name:'TRANSPORTES FEMA',csm:'CR',tier:'Premier',arr:571000,child_account:false,current_sentiment:'Green',new_sentiment:'Green',upcoming_renewal_date:'2026-12-30',value_cycle:'Develop',safety:'NA',fleet_security:'NA',fuel:'NA',maintenance:'NA',utilization:'NA',compliance:'NA',routing:'NA',personas:false,goals_defined:true,priority_next_program:'Safety',notes:'No programs active yet. Safety scoped for Q3.'},
+  {id:'ap',name:'AUTOTRANSPORTES PILOT',csm:'CR',tier:'Premier',arr:386459,child_account:false,current_sentiment:'Red',new_sentiment:'Red',upcoming_renewal_date:'2026-07-15',value_cycle:'Testing',safety:'NA',fleet_security:'NA',fuel:'NA',maintenance:'NA',utilization:'NA',compliance:'NA',routing:'NA',personas:false,goals_defined:false,priority_next_program:'Safety',notes:'At risk - no programs active. Needs executive alignment.'},
+  {id:'qa',name:'QUALTIA ALIMENTOS',csm:'CR',tier:'Premier',arr:550000,child_account:false,current_sentiment:'Yellow',new_sentiment:'Green',upcoming_renewal_date:'2027-02-28',value_cycle:'Launch',safety:'NA',fleet_security:'NA',fuel:'NA',maintenance:'NA',utilization:'NA',compliance:'NA',routing:'NA',personas:true,goals_defined:true,priority_next_program:'Safety',notes:'Sentiment improving Yellow to Green. Kick-off Q3.'},
+  {id:'gc',name:'GCC TRANSPORTE',csm:'CR',tier:'Premier',arr:164000,child_account:false,current_sentiment:'Green',new_sentiment:'Green',upcoming_renewal_date:'2026-10-30',value_cycle:'Launch',safety:'Testing',fleet_security:'NA',fuel:'NA',maintenance:'NA',utilization:'NA',compliance:'NA',routing:'NA',personas:true,goals_defined:true,priority_next_program:'Fuel',notes:'Safety in testing. Small account with strong engagement.'},
+  {id:'au',name:'ARRENDADORA UMX',csm:'CR',tier:'Premier',arr:431000,child_account:false,current_sentiment:'Green',new_sentiment:'Green',upcoming_renewal_date:'2026-12-15',value_cycle:'Launch',safety:'Launch',fleet_security:'NA',fuel:'NA',maintenance:'Testing',utilization:'NA',compliance:'NA',routing:'NA',personas:true,goals_defined:true,priority_next_program:'Fuel',notes:'Safety at launch. Maintenance testing. Strong partnership.'},
+  {id:'pp',name:'PUNTO A PUNTO T2',csm:'CR',tier:'Premier',arr:257975,child_account:false,current_sentiment:'Yellow',new_sentiment:'Yellow',upcoming_renewal_date:'2026-08-10',value_cycle:'NA',safety:'NA',fleet_security:'NA',fuel:'NA',maintenance:'NA',utilization:'NA',compliance:'NA',routing:'NA',personas:false,goals_defined:false,priority_next_program:'Safety',notes:'No value programs defined. Yellow risk. Needs QBR.'},
 ];
 
-// ================================================================
-// SECTION 3: MUTABLE STATE
-// ================================================================
+// ── STATE ─────────────────────────────────────────────────
+let accs=[...SEED];
+const ST={ft:'',fc:'',fti:'',sc:'arr',sd:'desc'};
+let toastT=null,insOpen=true;
 
-let accounts = [...SEED_ACCOUNTS];
+// ── HELPERS ───────────────────────────────────────────────
+function fmt(v){if(!v||isNaN(v))return'$0';if(v>=1e6)return'$'+(v/1e6).toFixed(2)+'M';if(v>=1e3)return'$'+Math.round(v/1e3)+'K';return'$'+Math.round(v);}
+function fdate(s){if(!s||s==='NA')return'—';try{return new Date(s+'T00:00:00').toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'});}catch{return s;}}
+function urgent(d){if(!d||d==='NA')return false;try{const x=(new Date(d+'T00:00:00')-TODAY)/86400000;return x>=0&&x<=90;}catch{return false;}}
+function sent(a){return a.new_sentiment||a.current_sentiment||'NA';}
+function pc(a){return PROGS.filter(p=>a[p]&&a[p]!=='NA').length;}
+function esc(s){return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');}
+function pill(s){if(!s||s==='NA')return'<span style="color:#D1D5DB;font-size:11px;">&#8212;</span>';const c=SS[s]||SS.NA;return`<span class="spill" style="background:${c.bg};color:${c.tx};">${s}</span>`;}
+function toast(m){clearTimeout(toastT);const e=document.getElementById('toast');e.textContent=m;e.classList.add('show');toastT=setTimeout(()=>e.classList.remove('show'),3500);}
+function set(id,v){const e=document.getElementById(id);if(e)e.textContent=v;}
+function f2(n){return n.toFixed(2);}
 
-const state = {
-  filter_team: '',
-  filter_csm:  '',
-  filter_tier: '',
-  sort_col: 'arr',
-  sort_dir: 'desc',
-};
-
-const charts = { donut: null, valueBar: null, tierBar: null };
-let toastTimer = null;
-let insightsOpen = true;
-
-// ================================================================
-// SECTION 4: UTILITY HELPERS
-// ================================================================
-
-function fmt(v) {
-  if (!v || isNaN(v)) return '$0';
-  if (v >= 1e6) return '$' + (v / 1e6).toFixed(2) + 'M';
-  if (v >= 1e3) return '$' + Math.round(v / 1e3) + 'K';
-  return '$' + Math.round(v);
-}
-
-function fmtDate(s) {
-  if (!s || s === 'NA') return '—';
-  try {
-    return new Date(s + 'T00:00:00').toLocaleDateString('en-US', {month:'short', day:'numeric', year:'numeric'});
-  } catch { return s; }
-}
-
-function isUrgent(dateStr) {
-  if (!dateStr || dateStr === 'NA') return false;
-  try {
-    const d = new Date(dateStr + 'T00:00:00');
-    const diff = (d - TODAY) / 86400000;
-    return diff >= 0 && diff <= 90;
-  } catch { return false; }
-}
-
-function sentiment(a) {
-  return a.new_sentiment || a.current_sentiment || 'NA';
-}
-
-function progCount(a) {
-  return PROGRAMS.filter(p => a[p] && a[p] !== 'NA').length;
-}
-
-function esc(s) {
-  return String(s || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
-}
-
-function stagePill(stage) {
-  if (!stage || stage === 'NA') return '<span style="color:#D1D5DB;font-size:11px;">—</span>';
-  const c = STAGE_STYLE[stage] || STAGE_STYLE['NA'];
-  return `<span class="stage-pill" style="background:${c.bg};color:${c.text};">${stage}</span>`;
-}
-
-function showToast(msg) {
-  clearTimeout(toastTimer);
-  const el = document.getElementById('toast');
-  el.textContent = msg;
-  el.classList.add('show');
-  toastTimer = setTimeout(() => el.classList.remove('show'), 3500);
-}
-
-// ================================================================
-// SECTION 5: COMPUTATION
-// ================================================================
-
-function computeFiltered() {
-  let r = [...accounts];
-  if (state.filter_csm)  r = r.filter(a => a.csm  === state.filter_csm);
-  if (state.filter_tier) r = r.filter(a => a.tier  === state.filter_tier);
-  if (state.filter_team && state.filter_team !== 'All')
-    r = r.filter(a => a.team === state.filter_team);
+// ── COMPUTE ───────────────────────────────────────────────
+function filtered(){
+  let r=[...accs];
+  if(ST.fc) r=r.filter(a=>a.csm===ST.fc);
+  if(ST.fti) r=r.filter(a=>a.tier===ST.fti);
+  if(ST.ft&&ST.ft!=='All') r=r.filter(a=>a.team===ST.ft);
   return r;
 }
-
-function computeKPIs(f) {
-  const n = f.length;
-  const totalARR  = f.reduce((s,a) => s + (a.arr||0), 0);
-  const atRisk    = f.filter(a => { const s = sentiment(a); return s==='Red'||s==='Yellow'; });
-  const atRiskARR = atRisk.reduce((s,a) => s + (a.arr||0), 0);
-  const withProgs = f.filter(a => progCount(a) > 0).length;
-  const totalProgs= f.reduce((s,a) => s + progCount(a), 0);
-  return {
-    n, totalARR,
-    atRisk: atRisk.length, atRiskARR,
-    coverage:    n ? Math.round(withProgs / n * 100) : 0,
-    avgPrograms: n ? (totalProgs / n).toFixed(1) : 0,
-    renewalsQ:   f.filter(a => isUrgent(a.upcoming_renewal_date)).length,
-    safetyActive:      f.filter(a => a.safety      && a.safety      !== 'NA').length,
-    fuelActive:        f.filter(a => a.fuel         && a.fuel        !== 'NA').length,
-    maintenanceActive: f.filter(a => a.maintenance  && a.maintenance !== 'NA').length,
-    twoPlus:     f.filter(a => progCount(a) >= 2).length,
-    zeroProgs:   f.filter(a => progCount(a) === 0).length,
-    goalsPersonas: f.filter(a => a.personas && a.goals_defined).length,
-  };
+function kpis(f){
+  const n=f.length,tARR=f.reduce((s,a)=>s+(a.arr||0),0);
+  const risk=f.filter(a=>{const s=sent(a);return s==='Red'||s==='Yellow';});
+  return{n,tARR,risk:risk.length,riskARR:risk.reduce((s,a)=>s+(a.arr||0),0),
+    cov:n?Math.round(f.filter(a=>pc(a)>0).length/n*100):0,
+    avg:n?(f.reduce((s,a)=>s+pc(a),0)/n).toFixed(1):0,
+    ren:f.filter(a=>urgent(a.upcoming_renewal_date)).length,
+    saf:f.filter(a=>a.safety&&a.safety!=='NA').length,
+    fue:f.filter(a=>a.fuel&&a.fuel!=='NA').length,
+    mai:f.filter(a=>a.maintenance&&a.maintenance!=='NA').length,
+    tp:f.filter(a=>pc(a)>=2).length,
+    zp:f.filter(a=>pc(a)===0).length,
+    gp:f.filter(a=>a.personas&&a.goals_defined).length};
 }
-
-function donutData(f) {
-  const d = {Green:0, Yellow:0, Red:0};
-  f.forEach(a => { const s = sentiment(a); if (d[s] !== undefined) d[s] += (a.arr||0); });
-  return [d.Green, d.Yellow, d.Red];
-}
-
-function valueCycleData(f) {
-  const c = {}; STAGES.forEach(s => c[s]=0);
-  f.forEach(a => { const s = a.value_cycle||'NA'; if (c[s]!==undefined) c[s]++; });
-  return STAGES.map(s => c[s]);
-}
-
-function tierData(f) {
-  const tiers = ['Elite','Premier','Plus','Starter'];
-  const sents = ['Green','Yellow','Red'];
-  const d = {};
-  sents.forEach(s => { d[s]={}; tiers.forEach(t => d[s][t]=0); });
-  f.forEach(a => {
-    const s = sentiment(a), t = a.tier;
-    if (d[s] && d[s][t] !== undefined) d[s][t] += (a.arr||0);
-  });
-  return { tiers, sents, d };
-}
-
-function computeInsights(f) {
-  const n = f.length;
-  if (!n) return ['No accounts in current scope.'];
-  const ins = [];
-
-  // 1. Accounts with 0 programs
-  const zero = f.filter(a => progCount(a) === 0);
-  if (zero.length) {
-    const zARR = zero.reduce((s,a) => s+(a.arr||0), 0);
-    ins.push(`${zero.length} account${zero.length>1?'s have':' has'} no active value programs — representing ${fmt(zARR)} in ARR at elevated churn risk.`);
-  }
-
-  // 2. Most common priority program
-  const pc = {};
-  f.forEach(a => { if (a.priority_next_program) pc[a.priority_next_program] = (pc[a.priority_next_program]||0)+1; });
-  const top = Object.entries(pc).sort((a,b) => b[1]-a[1])[0];
-  if (top) ins.push(`${top[0]} is the most common priority program across ${top[1]} account${top[1]>1?'s':''} — consider a ${top[0]} enablement sprint.`);
-
-  // 3. Renewals within 90 days
-  const urgent = f.filter(a => isUrgent(a.upcoming_renewal_date));
-  if (urgent.length) {
-    const sc = {Green:0,Yellow:0,Red:0};
-    urgent.forEach(a => { const s=sentiment(a); if(sc[s]!==undefined) sc[s]++; });
-    const parts = [];
-    if (sc.Green)  parts.push(sc.Green  + ' Green');
-    if (sc.Yellow) parts.push(sc.Yellow + ' Yellow');
-    if (sc.Red)    parts.push(sc.Red    + ' Red');
-    ins.push(`${urgent.length} account${urgent.length>1?' renew':' renews'} within 90 days. Sentiment: ${parts.join(', ')}.`);
-  } else {
-    ins.push('No accounts renew within the next 90 days.');
-  }
-
-  // 4. Red accounts
-  const red = f.filter(a => sentiment(a) === 'Red');
-  if (red.length) {
-    const rARR = red.reduce((s,a) => s+(a.arr||0), 0);
-    ins.push(`🔴 ${red.length} account${red.length>1?'s':''} (${fmt(rARR)} ARR) ${red.length>1?'are':'is'} Red — immediate attention required: ${red.map(a=>a.name).join(', ')}.`);
-  }
-
-  // 5. Goals & Personas gap
-  const missing = f.filter(a => !(a.personas && a.goals_defined)).length;
-  if (missing) {
-    ins.push(`${missing} account${missing>1?'s are':' is'} missing goals or personas (${Math.round(missing/n*100)}% of portfolio) — complete these to unlock full value cycle engagement.`);
-  } else {
-    ins.push('All accounts have goals and personas defined — strong foundation for value delivery.');
-  }
-
+function dData(f){const d={Green:0,Yellow:0,Red:0};f.forEach(a=>{const s=sent(a);if(d[s]!==undefined)d[s]+=(a.arr||0);});return[d.Green,d.Yellow,d.Red];}
+function vcData(f){const c={};STAGES.forEach(s=>c[s]=0);f.forEach(a=>{const s=a.value_cycle||'NA';if(c[s]!==undefined)c[s]++;});return STAGES.map(s=>c[s]);}
+function tData(f){const T=['Elite','Premier','Plus','Starter'],S=['Green','Yellow','Red'],d={};S.forEach(s=>{d[s]={};T.forEach(t=>d[s][t]=0);});f.forEach(a=>{const s=sent(a),t=a.tier;if(d[s]&&d[s][t]!==undefined)d[s][t]+=(a.arr||0);});return{T,S,d};}
+function insights(f){
+  const n=f.length;if(!n)return['No accounts in current scope.'];
+  const ins=[];
+  const z=f.filter(a=>pc(a)===0);
+  if(z.length)ins.push(`${z.length} account${z.length>1?'s have':' has'} no active value programs — ${fmt(z.reduce((s,a)=>s+(a.arr||0),0))} ARR at elevated churn risk.`);
+  const p={};f.forEach(a=>{if(a.priority_next_program)p[a.priority_next_program]=(p[a.priority_next_program]||0)+1;});
+  const top=Object.entries(p).sort((a,b)=>b[1]-a[1])[0];
+  if(top)ins.push(`${top[0]} is the most common priority program across ${top[1]} account${top[1]>1?'s':''} — consider a ${top[0]} enablement sprint.`);
+  const urg=f.filter(a=>urgent(a.upcoming_renewal_date));
+  if(urg.length){const sc={Green:0,Yellow:0,Red:0};urg.forEach(a=>{const s=sent(a);if(sc[s]!==undefined)sc[s]++;});const pts=[];if(sc.Green)pts.push(sc.Green+' Green');if(sc.Yellow)pts.push(sc.Yellow+' Yellow');if(sc.Red)pts.push(sc.Red+' Red');ins.push(`${urg.length} account${urg.length>1?' renew':' renews'} within 90 days. Sentiment: ${pts.join(', ')}.`);}
+  else ins.push('No accounts renew within the next 90 days.');
+  const red=f.filter(a=>sent(a)==='Red');
+  if(red.length)ins.push(`${red.length} account${red.length>1?'s':''} (${fmt(red.reduce((s,a)=>s+(a.arr||0),0))} ARR) ${red.length>1?'are':'is'} Red — immediate attention: ${red.map(a=>a.name).join(', ')}.`);
+  const mis=f.filter(a=>!(a.personas&&a.goals_defined)).length;
+  ins.push(mis?`${mis} account${mis>1?'s are':' is'} missing goals or personas (${Math.round(mis/n*100)}% of portfolio).`:'All accounts have goals and personas defined.');
   return ins;
 }
-
-function sortAccounts(arr, col, dir) {
-  return arr.sort((a, b) => {
-    let va = col === 'programs_active' ? progCount(a)
-           : col === 'display_sentiment' ? sentiment(a)
-           : a[col];
-    let vb = col === 'programs_active' ? progCount(b)
-           : col === 'display_sentiment' ? sentiment(b)
-           : b[col];
-    if (typeof va === 'string') va = va.toLowerCase();
-    if (typeof vb === 'string') vb = vb.toLowerCase();
-    if (va < vb) return dir === 'asc' ? -1 : 1;
-    if (va > vb) return dir === 'asc' ?  1 : -1;
-    return 0;
+function sortA(arr,col,dir){
+  return arr.sort((a,b)=>{
+    let va=col==='pc'?pc(a):col==='dsent'?sent(a):a[col];
+    let vb=col==='pc'?pc(b):col==='dsent'?sent(b):b[col];
+    if(typeof va==='string')va=va.toLowerCase();if(typeof vb==='string')vb=vb.toLowerCase();
+    return va<vb?(dir==='asc'?-1:1):va>vb?(dir==='asc'?1:-1):0;
   });
 }
 
-// ================================================================
-// SECTION 6: KPI RENDER
-// ================================================================
-
-function renderKPIs(k) {
-  setText('kpi-total-arr',    fmt(k.totalARR));
-  setText('kpi-account-count', k.n);
-  const ar = document.getElementById('kpi-at-risk');
-  ar.textContent = k.atRisk;
-  ar.style.color = k.atRisk > 0 ? '#DC2626' : '#111827';
-  document.getElementById('kpi-at-risk-sub').textContent = k.atRisk > 0 ? fmt(k.atRiskARR) + ' ARR' : '';
-  setText('kpi-coverage',     k.n ? k.coverage + '%' : '—');
-  setText('kpi-avg-programs', k.n ? k.avgPrograms : '—');
-  const rEl = document.getElementById('kpi-renewals');
-  rEl.textContent = k.renewalsQ;
-  rEl.style.color = k.renewalsQ > 0 ? '#D97706' : '#111827';
-  setText('kpi-safety',      k.safetyActive);
-  setText('kpi-fuel',        k.fuelActive);
-  setText('kpi-maintenance', k.maintenanceActive);
-  setText('kpi-two-plus',    k.twoPlus);
-  const zEl = document.getElementById('kpi-zero-programs');
-  zEl.textContent = k.zeroProgs;
-  zEl.style.color = k.zeroProgs > 0 ? '#DC2626' : '#111827';
-  setText('kpi-goals-personas', k.goalsPersonas);
+// ── KPI RENDER ────────────────────────────────────────────
+function renderKPIs(k){
+  set('k-arr',fmt(k.tARR));set('k-n',k.n);
+  const re=document.getElementById('k-risk');re.textContent=k.risk;re.style.color=k.risk>0?'#DC2626':'#111827';
+  document.getElementById('k-risk-s').textContent=k.risk>0?fmt(k.riskARR)+' ARR':'';
+  set('k-cov',k.n?k.cov+'%':'—');set('k-avg',k.n?k.avg:'—');
+  const rn=document.getElementById('k-ren');rn.textContent=k.ren;rn.style.color=k.ren>0?'#D97706':'#111827';
+  set('k-saf',k.saf);set('k-fue',k.fue);set('k-mai',k.mai);set('k-2p',k.tp);
+  const ze=document.getElementById('k-0p');ze.textContent=k.zp;ze.style.color=k.zp>0?'#DC2626':'#111827';
+  set('k-gp',k.gp);
 }
 
-function setText(id, val) {
-  const el = document.getElementById(id);
-  if (el) el.textContent = val;
+// ── SVG CHARTS ────────────────────────────────────────────
+function polar(cx,cy,r,deg){const rad=(deg-90)*Math.PI/180;return{x:cx+r*Math.cos(rad),y:cy+r*Math.sin(rad)};}
+
+function renderDonut(f){
+  const[gv,yv,rv]=dData(f),total=gv+yv+rv;
+  const svg=document.getElementById('donut-svg');
+  const cx=120,cy=110,oR=88,iR=54;
+  const segs=[{v:gv,c:'#22C55E',l:'Green'},{v:yv,c:'#FBBF24',l:'Yellow'},{v:rv,c:'#EF4444',l:'Red'}];
+  let h='';
+  // Center text
+  h+=`<text x="${cx}" y="${cy-10}" text-anchor="middle" fill="#9CA3AF" font-size="10" font-weight="600" font-family="system-ui" letter-spacing="1">TOTAL ARR</text>`;
+  h+=`<text x="${cx}" y="${cy+14}" text-anchor="middle" fill="#111827" font-size="17" font-weight="800" font-family="system-ui">${total?fmt(total):'$0'}</text>`;
+  if(!total){
+    h+=`<circle cx="${cx}" cy="${cy}" r="${oR}" fill="#F3F4F6"/><circle cx="${cx}" cy="${cy}" r="${iR}" fill="white"/>`;
+  }else{
+    let angle=-90;
+    segs.forEach(sg=>{
+      if(!sg.v)return;
+      const sw=(sg.v/total)*360,end=angle+sw;
+      const os=polar(cx,cy,oR,angle),oe=polar(cx,cy,oR,end);
+      const is_=polar(cx,cy,iR,end),ie=polar(cx,cy,iR,angle);
+      const la=sw>180?1:0;
+      h+=`<path d="M${f2(os.x)},${f2(os.y)} A${oR},${oR} 0 ${la},1 ${f2(oe.x)},${f2(oe.y)} L${f2(is_.x)},${f2(is_.y)} A${iR},${iR} 0 ${la},0 ${f2(ie.x)},${f2(ie.y)} Z" fill="${sg.c}" stroke="white" stroke-width="2"><title>${sg.l}: ${fmt(sg.v)} (${Math.round(sg.v/total*100)}%)</title></path>`;
+      angle=end;
+    });
+  }
+  // Legend
+  const ly=cy+oR+22;
+  segs.forEach((sg,i)=>{
+    const lx=i*78+6;
+    h+=`<rect x="${lx}" y="${ly}" width="10" height="10" rx="2" fill="${sg.c}"/>`;
+    h+=`<text x="${lx+14}" y="${ly+9.5}" fill="#6B7280" font-size="11" font-family="system-ui,sans-serif">${sg.l}</text>`;
+  });
+  svg.innerHTML=h;
 }
 
-// ================================================================
-// SECTION 7: CHARTS
-// ================================================================
-
-function initCharts() {
-  // Donut
-  charts.donut = new Chart(document.getElementById('donut-chart'), {
-    type: 'doughnut',
-    data: {
-      labels: ['Green','Yellow','Red'],
-      datasets: [{ data:[0,0,0], backgroundColor:['#22C55E','#FBBF24','#EF4444'], borderColor:'#fff', borderWidth:3, hoverOffset:6 }]
-    },
-    options: {
-      cutout: '65%', responsive:true, maintainAspectRatio:false,
-      plugins: {
-        legend: { position:'bottom', labels:{ font:{size:11,family:'Inter'}, padding:14, usePointStyle:true } },
-        tooltip: { callbacks: { label: ctx => {
-          const total = ctx.dataset.data.reduce((s,v)=>s+v,0);
-          return total ? `${ctx.label}: ${fmt(ctx.parsed)} (${(ctx.parsed/total*100).toFixed(1)}%)` : `${ctx.label}: $0`;
-        }}}
-      }
-    }
+function renderVC(f){
+  const data=vcData(f),svg=document.getElementById('vc-svg');
+  const W=380,pL=90,pR=40,pT=8,rH=28,max=Math.max(...data,1),aW=W-pL-pR;
+  let h='';
+  [0,.25,.5,.75,1].forEach(p=>{const x=pL+Math.round(p*aW);h+=`<line x1="${x}" y1="${pT}" x2="${x}" y2="${pT+STAGES.length*rH}" stroke="#F3F4F6" stroke-width="1"/>`;});
+  STAGES.forEach((s,i)=>{
+    const cnt=data[i],bW=cnt?Math.round((cnt/max)*aW):0,y=pT+i*rH,c=SC_BG[i];
+    h+=`<text x="${pL-6}" y="${y+rH/2+4}" text-anchor="end" fill="#374151" font-size="11" font-weight="600" font-family="system-ui">${s}</text>`;
+    h+=`<rect x="${pL}" y="${y+5}" width="${Math.max(bW,2)}" height="${rH-10}" rx="3" fill="${cnt?c:'#E5E7EB'}"/>`;
+    h+=`<text x="${pL+Math.max(bW,2)+6}" y="${y+rH/2+4}" fill="#6B7280" font-size="11" font-family="system-ui">${cnt}</text>`;
   });
-
-  // Value Cycle Bar (horizontal)
-  charts.valueBar = new Chart(document.getElementById('value-cycle-chart'), {
-    type: 'bar',
-    data: {
-      labels: STAGES,
-      datasets: [{ data: Array(6).fill(0), backgroundColor: STAGE_CHART_BG, borderRadius:3, barThickness:16 }]
-    },
-    options: {
-      indexAxis:'y', responsive:true, maintainAspectRatio:false,
-      plugins: { legend:{ display:false } },
-      scales: {
-        x: { beginAtZero:true, ticks:{ stepSize:1, precision:0, font:{size:10} }, grid:{ color:'#F3F4F6' } },
-        y: { grid:{ display:false }, ticks:{ font:{size:11,weight:'600'} } }
-      }
-    }
-  });
-
-  // ARR by Tier stacked bar
-  charts.tierBar = new Chart(document.getElementById('arr-tier-chart'), {
-    type: 'bar',
-    data: {
-      labels: ['Elite','Premier','Plus','Starter'],
-      datasets: [
-        { label:'Green',  data:[0,0,0,0], backgroundColor:'#22C55E', stack:'a' },
-        { label:'Yellow', data:[0,0,0,0], backgroundColor:'#FBBF24', stack:'a' },
-        { label:'Red',    data:[0,0,0,0], backgroundColor:'#EF4444', stack:'a' },
-      ]
-    },
-    options: {
-      responsive:true, maintainAspectRatio:false,
-      plugins: {
-        legend:{ position:'bottom', labels:{ font:{size:10,family:'Inter'}, padding:10, usePointStyle:true } },
-        tooltip:{ callbacks:{ label: ctx => `${ctx.dataset.label}: ${fmt(ctx.raw)}` }}
-      },
-      scales: {
-        x:{ stacked:true, grid:{display:false}, ticks:{font:{size:10}} },
-        y:{ stacked:true, beginAtZero:true, ticks:{ callback: v => fmt(v), font:{size:9} }, grid:{color:'#F3F4F6'} }
-      }
-    }
-  });
+  svg.innerHTML=h;
+  svg.setAttribute('viewBox',`0 0 ${W} ${pT+STAGES.length*rH+8}`);
 }
 
-function updateCharts(f) {
-  // Donut
-  const dd = donutData(f);
-  charts.donut.data.datasets[0].data = dd;
-  charts.donut.update('none');
-  document.getElementById('donut-total-arr').textContent = fmt(dd.reduce((s,v)=>s+v,0));
-
-  // Value Cycle
-  charts.valueBar.data.datasets[0].data = valueCycleData(f);
-  charts.valueBar.update('none');
-
-  // Tier
-  const td = tierData(f);
-  td.sents.forEach((s,i) => {
-    charts.tierBar.data.datasets[i].data = td.tiers.map(t => td.d[s][t]);
+function renderTier(f){
+  const{T,S,d}=tData(f),svg=document.getElementById('tier-svg');
+  const W=320,H=190,pL=38,pB=52,pT=10,pR=10,aW=W-pL-pR,aH=H-pB-pT;
+  const tots=T.map(t=>S.reduce((s,se)=>s+(d[se][t]||0),0)),max=Math.max(...tots,1);
+  const bW=Math.floor(aW/T.length)-10;
+  const sc={Green:'#22C55E',Yellow:'#FBBF24',Red:'#EF4444'};
+  let h='';
+  [0,1,2,3,4].forEach(g=>{
+    const y=pT+aH*(1-g/4);
+    h+=`<line x1="${pL}" y1="${y.toFixed(1)}" x2="${W-pR}" y2="${y.toFixed(1)}" stroke="${g===0?'#E5E7EB':'#F3F4F6'}" stroke-width="1"/>`;
+    if(g>0)h+=`<text x="${pL-4}" y="${y+4}" text-anchor="end" fill="#9CA3AF" font-size="9" font-family="system-ui">${fmt(max*g/4)}</text>`;
   });
-  charts.tierBar.update('none');
+  T.forEach((tier,i)=>{
+    const x=pL+i*(aW/T.length)+5;let sy=pT+aH;
+    S.forEach(se=>{const v=d[se][tier]||0;if(!v)return;const bH=Math.max(Math.round((v/max)*aH),2);sy-=bH;h+=`<rect x="${x}" y="${sy}" width="${bW}" height="${bH}" fill="${sc[se]}" rx="2"><title>${tier} ${se}: ${fmt(v)}</title></rect>`;});
+    h+=`<text x="${x+bW/2}" y="${H-pB+14}" text-anchor="middle" fill="#374151" font-size="10" font-family="system-ui">${tier}</text>`;
+  });
+  S.forEach((s,i)=>{const lx=pL+4+i*82;h+=`<rect x="${lx}" y="${H-pB+22}" width="10" height="10" rx="2" fill="${sc[s]}"/><text x="${lx+14}" y="${H-pB+31}" fill="#6B7280" font-size="10" font-family="system-ui">${s}</text>`;});
+  svg.innerHTML=h;
 }
 
-// ================================================================
-// SECTION 8: HEATMAP
-// ================================================================
-
-function renderHeatmap(f) {
-  const sorted = [...f].sort((a,b) => (b.arr||0)-(a.arr||0));
-  const grid = document.getElementById('heatmap-grid');
-
-  let html = '<div class="hm-header">Account</div>';
-  PROGRAM_LABELS.forEach(l => { html += `<div class="hm-header">${l}</div>`; });
-
-  sorted.forEach(a => {
-    html += `<div class="hm-account"><div class="hm-account-name">${esc(a.name)}</div><div class="hm-account-arr">${fmt(a.arr)}</div></div>`;
-    PROGRAMS.forEach((p, pi) => {
-      const stage = a[p] || 'NA';
-      const c = STAGE_STYLE[stage] || STAGE_STYLE['NA'];
-      const label = stage === 'NA' ? '—' : stage;
-      const tip = esc(a.name) + '|' + esc(PROGRAM_LABELS[pi]) + '|' + esc(stage) + '|' + esc((a.notes||'').substring(0,90));
-      html += `<div class="hm-cell" style="background:${c.bg};color:${c.text};" data-tip="${tip}">${label}</div>`;
+// ── HEATMAP ───────────────────────────────────────────────
+function renderHM(f){
+  const s=[...f].sort((a,b)=>(b.arr||0)-(a.arr||0));
+  const g=document.getElementById('hm-grid');
+  let h='<div class="hm-hdr">Account</div>';
+  PROG_LBL.forEach(l=>{h+=`<div class="hm-hdr">${l}</div>`;});
+  s.forEach(a=>{
+    h+=`<div class="hm-acc"><div class="hm-an">${esc(a.name)}</div><div class="hm-ar">${fmt(a.arr)}</div></div>`;
+    PROGS.forEach((p,pi)=>{
+      const st=a[p]||'NA',c=SS[st]||SS.NA,tip=a.name+'|'+PROG_LBL[pi]+'|'+st+'|'+(a.notes||'').substring(0,80);
+      h+=`<div class="hm-cell" style="background:${c.bg};color:${c.tx};" data-tip="${esc(tip)}">${st==='NA'?'&#8212;':st}</div>`;
     });
   });
-
-  grid.innerHTML = html;
+  g.innerHTML=h;
 }
 
-// Tooltip via event delegation
-document.addEventListener('mousemove', e => {
-  const cell = e.target.closest('.hm-cell');
-  const tip  = document.getElementById('hm-tooltip');
-  if (cell && cell.dataset.tip) {
-    const parts = cell.dataset.tip.split('|');
-    const [account, program, stage, notes] = parts;
-    tip.innerHTML = `<strong style="color:#FB923C;">${account}</strong><br>${program}: <strong>${stage}</strong>${notes ? '<br><span style="color:#9CA3AF;font-size:11px;">'+notes+'</span>' : ''}`;
-    const x = Math.min(e.clientX + 14, window.innerWidth  - 260);
-    const y = Math.min(e.clientY + 14, window.innerHeight - 90);
-    tip.style.left = x + 'px';
-    tip.style.top  = y + 'px';
-    tip.style.display = 'block';
-  } else {
-    tip.style.display = 'none';
-  }
+document.addEventListener('mousemove',e=>{
+  const cell=e.target.closest&&e.target.closest('.hm-cell');
+  const tip=document.getElementById('tip');
+  if(cell&&cell.dataset.tip){
+    const pts=cell.dataset.tip.split('|');
+    tip.innerHTML=`<strong style="color:#FB923C;">${pts[0]}</strong><br>${pts[1]}: <strong>${pts[2]}</strong>${pts[3]?'<br><span style="color:#9CA3AF;font-size:11px;">'+esc(pts[3])+'</span>':''}`;
+    tip.style.left=Math.min(e.clientX+14,window.innerWidth-260)+'px';
+    tip.style.top=Math.min(e.clientY+14,window.innerHeight-90)+'px';
+    tip.style.display='block';
+  }else{tip.style.display='none';}
 });
 
-// ================================================================
-// SECTION 9: TABLE
-// ================================================================
-
-function renderTable(sorted) {
-  const tbody = document.getElementById('table-body');
-  document.getElementById('table-count').textContent = `${sorted.length} account${sorted.length!==1?'s':''}`;
-
-  if (!sorted.length) {
-    tbody.innerHTML = '<tr><td colspan="13" style="text-align:center;padding:32px;color:#9CA3AF;font-size:13px;">No accounts match current filters</td></tr>';
-    return;
-  }
-
-  tbody.innerHTML = sorted.map((a, i) => {
-    const sent = sentiment(a);
-    const sentCol = SENTIMENT_COLOR[sent] || '#9CA3AF';
-    const bothSent = a.current_sentiment && a.new_sentiment && a.current_sentiment !== a.new_sentiment;
-    const sentCell = bothSent
-      ? `<span style="color:${SENTIMENT_COLOR[a.current_sentiment]||'#9CA3AF'}">●</span> <span style="font-size:10px;color:#9CA3AF;">${a.current_sentiment} →</span> <span style="color:${sentCol}">● ${a.new_sentiment}</span>`
-      : `<span style="color:${sentCol}">● ${sent}</span>`;
-
-    const urgentClass = isUrgent(a.upcoming_renewal_date) ? 'renewal-urgent' : '';
-    const rowBg = i % 2 === 0 ? '#fff' : '#FAFAFA';
-    const pc = progCount(a);
-    const tierBg = a.tier === 'Elite' ? '#FEF3C7' : a.tier === 'Premier' ? '#EFF6FF' : '#F3F4F6';
-    const tierCol = a.tier === 'Elite' ? '#92400E' : a.tier === 'Premier' ? '#1E40AF' : '#374151';
-
-    return `<tr style="background:${rowBg}; border-bottom:1px solid #F3F4F6;">
-      <td style="padding:9px 16px; font-size:12px; font-weight:700; color:#111827; white-space:nowrap;">${esc(a.name)}</td>
-      <td style="padding:9px 10px; font-size:11px; color:#6B7280;">${esc(a.csm)}</td>
-      <td style="padding:9px 10px; font-size:12px; font-weight:700; color:#374151; text-align:right;">${fmt(a.arr)}</td>
-      <td style="padding:9px 10px;">
-        <span class="tier-badge" style="background:${tierBg};color:${tierCol};">${esc(a.tier)}</span>
-      </td>
-      <td style="padding:9px 10px; font-size:12px; white-space:nowrap;" class="${urgentClass}">${fmtDate(a.upcoming_renewal_date)}</td>
-      <td style="padding:9px 10px; font-size:12px; white-space:nowrap;">${sentCell}</td>
-      <td style="padding:9px 10px;">${stagePill(a.value_cycle)}</td>
-      <td style="padding:9px 10px;">${stagePill(a.safety)}</td>
-      <td style="padding:9px 10px;">${stagePill(a.fuel)}</td>
-      <td style="padding:9px 10px;">${stagePill(a.maintenance)}</td>
-      <td style="padding:9px 10px; text-align:center; font-size:13px; font-weight:800; color:${pc===0?'#EF4444':'#374151'};">${pc}</td>
-      <td style="padding:9px 10px; font-size:11px; color:#6B7280;">${esc(a.priority_next_program||'—')}</td>
-      <td style="padding:9px 16px; font-size:11px; color:#9CA3AF; max-width:180px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;" title="${esc(a.notes||'')}">${esc(a.notes||'')}</td>
+// ── TABLE ─────────────────────────────────────────────────
+function renderTable(sorted){
+  const tb=document.getElementById('tbody');
+  document.getElementById('tbl-cnt').textContent=`${sorted.length} account${sorted.length!==1?'s':''}`;
+  if(!sorted.length){tb.innerHTML='<tr><td colspan="13" style="text-align:center;padding:32px;color:#9CA3AF;font-size:13px;">No accounts match current filters</td></tr>';return;}
+  tb.innerHTML=sorted.map((a,i)=>{
+    const s=sent(a),sc=SCOL[s]||'#9CA3AF';
+    const both=a.current_sentiment&&a.new_sentiment&&a.current_sentiment!==a.new_sentiment;
+    const scell=both?`<span style="color:${SCOL[a.current_sentiment]||'#9CA3AF'}">&#9679;</span> <span style="font-size:10px;color:#9CA3AF;">${a.current_sentiment} &#8594;</span> <span style="color:${sc}">&#9679; ${a.new_sentiment}</span>`:`<span style="color:${sc}">&#9679; ${s}</span>`;
+    const rb=i%2===0?'#fff':'#FAFAFA',p=pc(a);
+    const tb2=a.tier==='Elite'?'#FEF3C7':a.tier==='Premier'?'#EFF6FF':'#F3F4F6';
+    const tc=a.tier==='Elite'?'#92400E':a.tier==='Premier'?'#1E40AF':'#374151';
+    return`<tr style="background:${rb};">
+      <td style="padding:9px 16px;font-size:12px;font-weight:700;color:#111827;white-space:nowrap;">${esc(a.name)}</td>
+      <td style="padding:9px 10px;font-size:11px;color:#6B7280;">${esc(a.csm)}</td>
+      <td style="padding:9px 10px;font-size:12px;font-weight:700;color:#374151;text-align:right;">${fmt(a.arr)}</td>
+      <td style="padding:9px 10px;"><span class="tbadge" style="background:${tb2};color:${tc};">${esc(a.tier)}</span></td>
+      <td style="padding:9px 10px;font-size:12px;white-space:nowrap;"${urgent(a.upcoming_renewal_date)?' class="ru"':''}>${fdate(a.upcoming_renewal_date)}</td>
+      <td style="padding:9px 10px;font-size:12px;white-space:nowrap;">${scell}</td>
+      <td style="padding:9px 10px;">${pill(a.value_cycle)}</td>
+      <td style="padding:9px 10px;">${pill(a.safety)}</td>
+      <td style="padding:9px 10px;">${pill(a.fuel)}</td>
+      <td style="padding:9px 10px;">${pill(a.maintenance)}</td>
+      <td style="padding:9px 10px;text-align:center;font-size:13px;font-weight:800;color:${p===0?'#EF4444':'#374151'};">${p}</td>
+      <td style="padding:9px 10px;font-size:11px;color:#6B7280;">${esc(a.priority_next_program||'—')}</td>
+      <td style="padding:9px 16px;font-size:11px;color:#9CA3AF;max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="${esc(a.notes||'')}">${esc(a.notes||'')}</td>
     </tr>`;
   }).join('');
 }
 
-function updateSortHeaders() {
-  document.querySelectorAll('#account-table th[data-col]').forEach(th => {
-    th.classList.remove('sort-asc','sort-desc');
-    if (th.dataset.col === state.sort_col) th.classList.add('sort-' + state.sort_dir);
-  });
-}
+function updSortHdr(){document.querySelectorAll('#tbl th[data-col]').forEach(th=>{th.classList.remove('sa','sd');if(th.dataset.col===ST.sc)th.classList.add(ST.sd==='asc'?'sa':'sd');});}
 
-document.querySelectorAll('#account-table th[data-col]').forEach(th => {
-  th.addEventListener('click', () => {
-    const col = th.dataset.col;
-    if (state.sort_col === col) {
-      state.sort_dir = state.sort_dir === 'asc' ? 'desc' : 'asc';
-    } else {
-      state.sort_col = col;
-      state.sort_dir = 'desc';
-    }
-    updateSortHeaders();
-    renderTable(sortAccounts([...computeFiltered()], state.sort_col, state.sort_dir));
+document.querySelectorAll('#tbl th[data-col]').forEach(th=>{
+  th.addEventListener('click',()=>{
+    const col=th.dataset.col;
+    ST.sc===col?(ST.sd=ST.sd==='asc'?'desc':'asc'):(ST.sc=col,ST.sd='desc');
+    updSortHdr();renderTable(sortA([...filtered()],ST.sc,ST.sd));
   });
 });
 
-// ================================================================
-// SECTION 10: INSIGHTS
-// ================================================================
+// ── INSIGHTS ──────────────────────────────────────────────
+function renderIns(ins){document.getElementById('ins-list').innerHTML=ins.map(t=>`<li class="ins-li"><span class="ins-arr">&#9658;</span><span>${esc(t)}</span></li>`).join('');}
+function toggleIns(){insOpen=!insOpen;document.getElementById('ins-body').className=insOpen?'open':'closed';document.getElementById('ins-lbl').textContent=insOpen?'Collapse':'Expand';document.getElementById('ins-ico').innerHTML=insOpen?'&#9650;':'&#9660;';}
 
-function renderInsights(ins) {
-  document.getElementById('insights-list').innerHTML = ins.map(t =>
-    `<li style="display:flex; align-items:flex-start; gap:8px; font-size:13px; color:#374151;">
-      <span style="color:#FF6900; flex-shrink:0; margin-top:1px;">▸</span>
-      <span>${esc(t)}</span>
-    </li>`
-  ).join('');
-}
-
-function toggleInsights() {
-  insightsOpen = !insightsOpen;
-  document.getElementById('insights-body').className = insightsOpen ? 'open' : 'closed';
-  document.getElementById('insights-btn-label').textContent = insightsOpen ? 'Collapse' : 'Expand';
-  document.getElementById('insights-btn-icon').textContent  = insightsOpen ? '▲' : '▼';
-}
-
-// ================================================================
-// SECTION 11: FILTERS
-// ================================================================
-
-function onFilterChange(type, value) {
-  state.filter_team = '';
-  state.filter_csm  = '';
-  state.filter_tier = '';
-  if (type === 'team') state.filter_team = value;
-  if (type === 'csm')  state.filter_csm  = value;
-  if (type === 'tier') state.filter_tier = value;
-  ['filter-team','filter-csm','filter-tier'].forEach(id => {
-    const el = document.getElementById(id);
-    const key = id.replace('filter-','filter_');
-    el.value = state[key] || '';
-    el.classList.toggle('filter-active', !!state[key]);
+// ── FILTERS ───────────────────────────────────────────────
+function onFC(type,val){
+  ST.ft='';ST.fc='';ST.fti='';
+  if(type==='team')ST.ft=val;if(type==='csm')ST.fc=val;if(type==='tier')ST.fti=val;
+  document.getElementById('f-team').value=ST.ft;
+  document.getElementById('f-csm').value=ST.fc;
+  document.getElementById('f-tier').value=ST.fti;
+  ['f-team','f-csm','f-tier'].forEach(id=>{
+    const el=document.getElementById(id);
+    el.classList.toggle('active',el.value!=='');
   });
   renderAll();
 }
-
-function resetFilters() {
-  state.filter_team = '';
-  state.filter_csm  = '';
-  state.filter_tier = '';
-  ['filter-team','filter-csm','filter-tier'].forEach(id => {
-    const el = document.getElementById(id);
-    el.value = '';
-    el.classList.remove('filter-active');
-  });
+function resetF(){
+  ST.ft='';ST.fc='';ST.fti='';
+  ['f-team','f-csm','f-tier'].forEach(id=>{const el=document.getElementById(id);el.value='';el.classList.remove('active');});
   renderAll();
 }
-
-function renderScopeBar(f) {
-  const totalARR = f.reduce((s,a) => s+(a.arr||0), 0);
-  let scope = 'All Accounts';
-  if (state.filter_csm)  scope = `CSM: ${state.filter_csm}`;
-  if (state.filter_tier) scope = `Tier: ${state.filter_tier}`;
-  if (state.filter_team && state.filter_team !== 'All') scope = `Team: ${state.filter_team}`;
-  document.getElementById('scope-bar').textContent =
-    `Showing: ${scope} — ${f.length} account${f.length!==1?'s':''}, ${fmt(totalARR)} ARR`;
+function renderScope(f){
+  const tARR=f.reduce((s,a)=>s+(a.arr||0),0);
+  const scope=ST.fc?`CSM: ${ST.fc}`:ST.fti?`Tier: ${ST.fti}`:(ST.ft&&ST.ft!=='All')?`Team: ${ST.ft}`:'All Accounts';
+  document.getElementById('scope-bar').textContent=`Showing: ${scope} — ${f.length} account${f.length!==1?'s':''}, ${fmt(tARR)} ARR`;
 }
 
-// ================================================================
-// SECTION 12: CSV UPLOAD & EXPORT
-// ================================================================
-
-function parseCSVRow(line) {
-  const cells = [];
-  const re = /(?:"((?:[^"]|"")*)"|([^,]*))(?:,|$)/g;
-  let m;
-  while ((m = re.exec(line)) !== null) {
-    cells.push((m[1] !== undefined ? m[1].replace(/""/g,'"') : m[2]||'').trim());
-    if (m.index + m[0].length >= line.length) break;
+// ── CSV ───────────────────────────────────────────────────
+function parseLine(line){const cells=[],re=/(?:"((?:[^"]|"")*)"|([^,]*))(?:,|$)/g;let m;while((m=re.exec(line))!==null){cells.push((m[1]!==undefined?m[1].replace(/""/g,'"'):m[2]||'').trim());if(m.index+m[0].length>=line.length)break;}return cells;}
+function pARR(s){const c=String(s||'').replace(/[$,\s]/g,'').toUpperCase();if(c.endsWith('M'))return parseFloat(c)*1e6;if(c.endsWith('K'))return parseFloat(c)*1e3;return parseFloat(c)||0;}
+function nTier(s){return({'elite':'Elite','premier':'Premier','plus':'Plus','starter':'Starter'})[String(s||'').toLowerCase()]||(s||'Premier');}
+function nStage(s){const m={'':'NA','na':'NA','n/a':'NA','none':'NA','implementing':'Implementing','impl':'Implementing','launch':'Launch','testing':'Testing','test':'Testing','develop':'Develop','dev':'Develop','development':'Develop','mature':'Mature','matured':'Mature','green':'Green','yellow':'Yellow','red':'Red'};return m[String(s||'').toLowerCase().trim()]||String(s||'NA');}
+function pBool(s){return['true','yes','1','y'].includes(String(s||'').toLowerCase().trim());}
+function slug(s){return String(s||'').toLowerCase().replace(/[^a-z0-9]+/g,'-').replace(/(^-|-$)/g,'');}
+const CM={'account name':'name','account':'name','csm':'csm','arr':'arr','arr ($)':'arr','tier':'tier','cs tier':'tier','upcoming renewal date':'upcoming_renewal_date','renewal date':'upcoming_renewal_date','renewal':'upcoming_renewal_date','current sentiment':'current_sentiment','new sentiment':'new_sentiment','sentiment':'new_sentiment','personas':'personas','goals':'goals_defined','goals defined':'goals_defined','value cycle':'value_cycle','safety':'safety','fleet security':'fleet_security','fleet_security':'fleet_security','fuel':'fuel','maintenance':'maintenance','utilization':'utilization','compliance':'compliance','routing':'routing','priority next program':'priority_next_program','priority':'priority_next_program','notes':'notes'};
+function parseCSV(txt){
+  txt=txt.replace(/^﻿/,'');
+  const lines=txt.split(/\r\n|\r|\n/).filter(l=>l.trim());
+  if(lines.length<2)throw new Error('Need header + at least 1 data row');
+  const hdrs=parseLine(lines[0]).map(h=>h.toLowerCase().trim()),fm=hdrs.map(h=>CM[h]||null),out=[];
+  for(let i=1;i<lines.length;i++){
+    const cells=parseLine(lines[i]),raw={};
+    fm.forEach((f,idx)=>{if(f)raw[f]=(cells[idx]||'').trim();});
+    if(!raw.name&&!raw.arr)continue;
+    out.push({id:slug(raw.name||'r'+i),name:raw.name||'Unknown',csm:raw.csm||'',tier:nTier(raw.tier),arr:pARR(raw.arr),child_account:pBool(raw.child_account),current_sentiment:nStage(raw.current_sentiment)||'Green',new_sentiment:nStage(raw.new_sentiment||raw.current_sentiment)||'Green',upcoming_renewal_date:raw.upcoming_renewal_date||'NA',value_cycle:nStage(raw.value_cycle)||'NA',safety:nStage(raw.safety)||'NA',fleet_security:nStage(raw.fleet_security)||'NA',fuel:nStage(raw.fuel)||'NA',maintenance:nStage(raw.maintenance)||'NA',utilization:nStage(raw.utilization)||'NA',compliance:nStage(raw.compliance)||'NA',routing:nStage(raw.routing)||'NA',personas:pBool(raw.personas),goals_defined:pBool(raw.goals_defined),priority_next_program:raw.priority_next_program||'',notes:raw.notes||''});
   }
-  return cells;
-}
-
-function parseARR(s) {
-  const c = String(s||'').replace(/[$,\s]/g,'').toUpperCase();
-  if (c.endsWith('M')) return parseFloat(c)*1e6;
-  if (c.endsWith('K')) return parseFloat(c)*1e3;
-  return parseFloat(c)||0;
-}
-
-function normTier(s) {
-  return ({'elite':'Elite','premier':'Premier','plus':'Plus','starter':'Starter'})[String(s||'').toLowerCase()] || (s||'Premier');
-}
-
-function normStage(s) {
-  const m = {
-    '':'NA','na':'NA','n/a':'NA','none':'NA',
-    'implementing':'Implementing','impl':'Implementing',
-    'launch':'Launch','testing':'Testing','test':'Testing',
-    'develop':'Develop','dev':'Develop','development':'Develop',
-    'mature':'Mature','matured':'Mature',
-    'green':'Green','yellow':'Yellow','red':'Red',
-  };
-  return m[String(s||'').toLowerCase().trim()] || String(s||'NA');
-}
-
-function parseBool(s) {
-  return ['true','yes','1','y'].includes(String(s||'').toLowerCase().trim());
-}
-
-function slugify(s) {
-  return String(s||'').toLowerCase().replace(/[^a-z0-9]+/g,'-').replace(/(^-|-$)/g,'');
-}
-
-const COL_MAP = {
-  'account name':'name','account':'name','csm':'csm',
-  'arr':'arr','arr ($)':'arr','annual recurring revenue':'arr',
-  'tier':'tier','cs tier':'tier',
-  'upcoming renewal date':'upcoming_renewal_date','renewal date':'upcoming_renewal_date','renewal':'upcoming_renewal_date',
-  'current sentiment':'current_sentiment',
-  'new sentiment':'new_sentiment','sentiment':'new_sentiment',
-  'personas':'personas','goals':'goals_defined','goals defined':'goals_defined',
-  'value cycle':'value_cycle','safety':'safety','fleet security':'fleet_security',
-  'fleet_security':'fleet_security','fuel':'fuel','maintenance':'maintenance',
-  'utilization':'utilization','compliance':'compliance','routing':'routing',
-  'priority next program':'priority_next_program','priority':'priority_next_program',
-  'notes':'notes',
-};
-
-function parseCSV(text) {
-  text = text.replace(/^﻿/,'');
-  const lines = text.split(/\r\n|\r|\n/).filter(l => l.trim());
-  if (lines.length < 2) throw new Error('Need a header row + at least one data row');
-  const headers = parseCSVRow(lines[0]).map(h => h.toLowerCase().trim());
-  const fieldMap = headers.map(h => COL_MAP[h]||null);
-  const out = [];
-  for (let i = 1; i < lines.length; i++) {
-    const cells = parseCSVRow(lines[i]);
-    const raw = {};
-    fieldMap.forEach((f,idx) => { if(f) raw[f] = (cells[idx]||'').trim(); });
-    if (!raw.name && !raw.arr) continue;
-    out.push({
-      id: slugify(raw.name||'row-'+i),
-      name: raw.name||'Unknown',
-      csm:  raw.csm||'',
-      tier: normTier(raw.tier),
-      arr:  parseARR(raw.arr),
-      child_account: parseBool(raw.child_account),
-      current_sentiment: normStage(raw.current_sentiment)||'Green',
-      new_sentiment:     normStage(raw.new_sentiment||raw.current_sentiment)||'Green',
-      upcoming_renewal_date: raw.upcoming_renewal_date||'NA',
-      value_cycle:   normStage(raw.value_cycle)||'NA',
-      safety:        normStage(raw.safety)||'NA',
-      fleet_security:normStage(raw.fleet_security)||'NA',
-      fuel:          normStage(raw.fuel)||'NA',
-      maintenance:   normStage(raw.maintenance)||'NA',
-      utilization:   normStage(raw.utilization)||'NA',
-      compliance:    normStage(raw.compliance)||'NA',
-      routing:       normStage(raw.routing)||'NA',
-      personas:      parseBool(raw.personas),
-      goals_defined: parseBool(raw.goals_defined),
-      priority_next_program: raw.priority_next_program||'',
-      notes: raw.notes||'',
-    });
-  }
-  if (!out.length) throw new Error('No valid account rows found in CSV');
+  if(!out.length)throw new Error('No valid rows found');
   return out;
 }
-
-document.getElementById('csv-upload').addEventListener('change', function(e) {
-  const file = e.target.files[0];
-  if (!file) return;
-  const reader = new FileReader();
-  reader.onload = ev => {
-    try {
-      accounts = parseCSV(ev.target.result);
-      populateDropdowns();
-      resetFilters();
-      showToast(`✓ ${accounts.length} accounts loaded from ${file.name}`);
-    } catch(err) {
-      showToast(`✗ ${err.message}`);
-    }
-  };
-  reader.readAsText(file);
-  e.target.value = '';
+document.getElementById('fu').addEventListener('change',function(e){
+  const file=e.target.files[0];if(!file)return;
+  const r=new FileReader();
+  r.onload=ev=>{try{accs=parseCSV(ev.target.result);populateDDs();resetF();toast(`✓ ${accs.length} accounts loaded from ${file.name}`);}catch(err){toast('✗ '+err.message);}};
+  r.readAsText(file);e.target.value='';
 });
-
-function exportCSV() {
-  const f = sortAccounts([...computeFiltered()], state.sort_col, state.sort_dir);
-  const cols = ['Account Name','CSM','ARR','Tier','Renewal Date','Sentiment','Value Cycle',
-    'Safety','Fleet Security','Fuel','Maintenance','Utilization','Compliance','Routing',
-    'Programs Active','Goals Defined','Personas','Priority Next','Notes'];
-  const rows = f.map(a => [
-    a.name, a.csm, a.arr, a.tier, a.upcoming_renewal_date, sentiment(a), a.value_cycle,
-    a.safety, a.fleet_security, a.fuel, a.maintenance, a.utilization, a.compliance, a.routing,
-    progCount(a), a.goals_defined, a.personas, a.priority_next_program, a.notes
-  ].map(v => `"${String(v==null?'':v).replace(/"/g,'""')}"`));
-  const csv = [cols.join(','), ...rows.map(r=>r.join(','))].join('\n');
-  const url = URL.createObjectURL(new Blob([csv], {type:'text/csv'}));
-  const a = Object.assign(document.createElement('a'), {href:url, download:`value-dashboard-${new Date().toISOString().slice(0,10)}.csv`});
-  a.click();
-  URL.revokeObjectURL(url);
-  showToast('✓ CSV exported');
+function exportCSV(){
+  const f=sortA([...filtered()],ST.sc,ST.sd);
+  const cols=['Account Name','CSM','ARR','Tier','Renewal Date','Sentiment','Value Cycle','Safety','Fleet Security','Fuel','Maintenance','Utilization','Compliance','Routing','Programs Active','Goals Defined','Personas','Priority Next','Notes'];
+  const rows=f.map(a=>[a.name,a.csm,a.arr,a.tier,a.upcoming_renewal_date,sent(a),a.value_cycle,a.safety,a.fleet_security,a.fuel,a.maintenance,a.utilization,a.compliance,a.routing,pc(a),a.goals_defined,a.personas,a.priority_next_program,a.notes].map(v=>`"${String(v==null?'':v).replace(/"/g,'""')}"`));
+  const csv=[cols.join(','),...rows.map(r=>r.join(','))].join('\n');
+  const url=URL.createObjectURL(new Blob([csv],{type:'text/csv'}));
+  const a=document.createElement('a');a.href=url;a.download=`value-dashboard-${new Date().toISOString().slice(0,10)}.csv`;
+  document.body.appendChild(a);a.click();document.body.removeChild(a);URL.revokeObjectURL(url);
+  toast('✓ CSV exported');
 }
 
-// ================================================================
-// SECTION 13: FILTER DROPDOWNS
-// ================================================================
-
-function populateDropdowns() {
-  const csmEl  = document.getElementById('filter-csm');
-  const teamEl = document.getElementById('filter-team');
-  const csms  = [...new Set(accounts.map(a=>a.csm).filter(Boolean))].sort();
-  const teams = [...new Set(accounts.map(a=>a.team).filter(Boolean))].sort();
-  csmEl.innerHTML  = '<option value="">All</option>' + csms.map(v=>`<option value="${esc(v)}">${esc(v)}</option>`).join('');
-  teamEl.innerHTML = '<option value="">All</option>' + teams.map(v=>`<option value="${esc(v)}">${esc(v)}</option>`).join('');
+// ── DROPDOWNS ─────────────────────────────────────────────
+function populateDDs(){
+  const csms=[...new Set(accs.map(a=>a.csm).filter(Boolean))].sort();
+  const teams=[...new Set(accs.map(a=>a.team).filter(Boolean))].sort();
+  document.getElementById('f-csm').innerHTML='<option value="">All</option>'+csms.map(v=>`<option value="${esc(v)}">${esc(v)}</option>`).join('');
+  document.getElementById('f-team').innerHTML='<option value="">All</option>'+teams.map(v=>`<option value="${esc(v)}">${esc(v)}</option>`).join('');
 }
 
-// ================================================================
-// SECTION 14: MASTER renderAll
-// ================================================================
-
-function renderAll() {
-  const f = computeFiltered();
-  renderScopeBar(f);
-  renderKPIs(computeKPIs(f));
-  updateCharts(f);
-  renderHeatmap(f);
-  renderTable(sortAccounts([...f], state.sort_col, state.sort_dir));
-  updateSortHeaders();
-  renderInsights(computeInsights(f));
+// ── RENDER ALL ────────────────────────────────────────────
+function renderAll(){
+  const f=filtered();
+  renderScope(f);
+  renderKPIs(kpis(f));
+  renderDonut(f);
+  renderVC(f);
+  renderTier(f);
+  renderHM(f);
+  renderTable(sortA([...f],ST.sc,ST.sd));
+  updSortHdr();
+  renderIns(insights(f));
 }
 
-// ================================================================
-// SECTION 15: INIT
-// ================================================================
-
-document.addEventListener('DOMContentLoaded', () => {
-  populateDropdowns();
-  initCharts();
-  renderAll();
-});
-
+document.addEventListener('DOMContentLoaded',()=>{populateDDs();renderAll();});
 </script>
 </body>
 </html>
