@@ -49,7 +49,8 @@ body{font-family:Inter,system-ui,-apple-system,BlinkMacSystemFont,'Segoe UI',san
 .cs{font-size:11px;color:#9CA3AF;}
 /* Heatmap */
 .hm-wrap{padding:14px 16px;overflow-x:auto;}
-#hm-grid{display:grid;grid-template-columns:195px repeat(7,minmax(78px,1fr));gap:2px;min-width:750px;}
+#hm-grid{display:grid;grid-template-columns:195px repeat(7,minmax(78px,1fr)) 100px;gap:2px;min-width:880px;}
+.hm-ach{font-size:12px!important;font-weight:800!important;}
 .hm-hdr{background:#F3F4F6;padding:7px 8px;font-size:10px;font-weight:700;color:#4B5563;text-transform:uppercase;letter-spacing:.04em;border-radius:3px;text-align:center;}
 .hm-hdr:first-child{text-align:left;}
 .hm-acc{padding:8px 10px;background:#F9FAFB;border-radius:3px;}
@@ -273,18 +274,28 @@ const SS={
 const SC_BG=['#E5E7EB','#BFDBFE','#3B82F6','#FDE68A','#FB923C','#22C55E'];
 const SCOL={Green:'#22C55E',Yellow:'#FBBF24',Red:'#EF4444'};
 
+// Product family → programs they unlock
+const PROD_PROGRAMS={
+  'Video Safety':        ['safety','fleet_security','compliance'],
+  'Vehicle Telematics':  ['fuel','maintenance','utilization','routing','compliance'],
+  'Driver Workflow':     ['compliance','safety'],
+  'Equipment Monitoring':['utilization','maintenance'],
+  'Asset Tracking':      ['utilization'],
+};
+const PROD_FAMILIES=Object.keys(PROD_PROGRAMS);
+
 // ── SEED DATA ─────────────────────────────────────────────
 const SEED=[
-  {id:'gp',name:'GRUPO PAQUETEXPRESS',csm:'CR',tier:'Elite',arr:1368881,child_account:false,current_sentiment:'Green',new_sentiment:'Green',upcoming_renewal_date:'2027-03-15',value_cycle:'Develop',safety:'Develop',fleet_security:'NA',fuel:'Testing',maintenance:'NA',utilization:'NA',compliance:'Testing',routing:'Testing',personas:true,goals_defined:true,priority_next_program:'Fuel',notes:'Safety: New Value Goals for 2025. VGs: Fuel Program.'},
-  {id:'pa',name:'PROTEINA ANIMAL',csm:'CR',tier:'Elite',arr:1006000,child_account:false,current_sentiment:'Green',new_sentiment:'Green',upcoming_renewal_date:'2026-09-30',value_cycle:'Launch',safety:'Testing',fleet_security:'NA',fuel:'NA',maintenance:'NA',utilization:'NA',compliance:'NA',routing:'NA',personas:true,goals_defined:true,priority_next_program:'Fuel',notes:'Strong safety adoption. Expand to fuel next cycle.'},
-  {id:'tr',name:'TROPPER',csm:'CR',tier:'Elite',arr:702000,child_account:false,current_sentiment:'Green',new_sentiment:'Green',upcoming_renewal_date:'2026-11-15',value_cycle:'Launch',safety:'Testing',fleet_security:'NA',fuel:'Implementing',maintenance:'NA',utilization:'NA',compliance:'NA',routing:'NA',personas:true,goals_defined:true,priority_next_program:'Fuel',notes:'Fuel program early implementation. Safety in testing.'},
-  {id:'ad',name:'AGUILAS DEL DESIERTO',csm:'CR',tier:'Elite',arr:714000,child_account:false,current_sentiment:'Green',new_sentiment:'Green',upcoming_renewal_date:'2027-01-20',value_cycle:'Develop',safety:'NA',fleet_security:'NA',fuel:'Launch',maintenance:'NA',utilization:'NA',compliance:'NA',routing:'NA',personas:true,goals_defined:true,priority_next_program:'Safety',notes:'Fuel program leading. Safety next priority.'},
-  {id:'tf',name:'TRANSPORTES FEMA',csm:'CR',tier:'Premier',arr:571000,child_account:false,current_sentiment:'Green',new_sentiment:'Green',upcoming_renewal_date:'2026-12-30',value_cycle:'Develop',safety:'NA',fleet_security:'NA',fuel:'NA',maintenance:'NA',utilization:'NA',compliance:'NA',routing:'NA',personas:false,goals_defined:true,priority_next_program:'Safety',notes:'No programs active yet. Safety scoped for Q3.'},
-  {id:'ap',name:'AUTOTRANSPORTES PILOT',csm:'CR',tier:'Premier',arr:386459,child_account:false,current_sentiment:'Red',new_sentiment:'Red',upcoming_renewal_date:'2026-07-15',value_cycle:'Testing',safety:'NA',fleet_security:'NA',fuel:'NA',maintenance:'NA',utilization:'NA',compliance:'NA',routing:'NA',personas:false,goals_defined:false,priority_next_program:'Safety',notes:'At risk - no programs active. Needs executive alignment.'},
-  {id:'qa',name:'QUALTIA ALIMENTOS',csm:'CR',tier:'Premier',arr:550000,child_account:false,current_sentiment:'Yellow',new_sentiment:'Green',upcoming_renewal_date:'2027-02-28',value_cycle:'Launch',safety:'NA',fleet_security:'NA',fuel:'NA',maintenance:'NA',utilization:'NA',compliance:'NA',routing:'NA',personas:true,goals_defined:true,priority_next_program:'Safety',notes:'Sentiment improving Yellow to Green. Kick-off Q3.'},
-  {id:'gc',name:'GCC TRANSPORTE',csm:'CR',tier:'Premier',arr:164000,child_account:false,current_sentiment:'Green',new_sentiment:'Green',upcoming_renewal_date:'2026-10-30',value_cycle:'Launch',safety:'Testing',fleet_security:'NA',fuel:'NA',maintenance:'NA',utilization:'NA',compliance:'NA',routing:'NA',personas:true,goals_defined:true,priority_next_program:'Fuel',notes:'Safety in testing. Small account with strong engagement.'},
-  {id:'au',name:'ARRENDADORA UMX',csm:'CR',tier:'Premier',arr:431000,child_account:false,current_sentiment:'Green',new_sentiment:'Green',upcoming_renewal_date:'2026-12-15',value_cycle:'Launch',safety:'Launch',fleet_security:'NA',fuel:'NA',maintenance:'Testing',utilization:'NA',compliance:'NA',routing:'NA',personas:true,goals_defined:true,priority_next_program:'Fuel',notes:'Safety at launch. Maintenance testing. Strong partnership.'},
-  {id:'pp',name:'PUNTO A PUNTO T2',csm:'CR',tier:'Premier',arr:257975,child_account:false,current_sentiment:'Yellow',new_sentiment:'Yellow',upcoming_renewal_date:'2026-08-10',value_cycle:'NA',safety:'NA',fleet_security:'NA',fuel:'NA',maintenance:'NA',utilization:'NA',compliance:'NA',routing:'NA',personas:false,goals_defined:false,priority_next_program:'Safety',notes:'No value programs defined. Yellow risk. Needs QBR.'},
+  {id:'gp',name:'GRUPO PAQUETEXPRESS',csm:'CR',tier:'Elite',arr:1368881,child_account:false,current_sentiment:'Green',new_sentiment:'Green',upcoming_renewal_date:'2027-03-15',value_cycle:'Develop',safety:'Develop',fleet_security:'NA',fuel:'Testing',maintenance:'NA',utilization:'NA',compliance:'Testing',routing:'Testing',personas:true,goals_defined:true,priority_next_program:'Fuel',products:['Video Safety','Vehicle Telematics'],notes:'Safety: New Value Goals for 2025. VGs: Fuel Program.'},
+  {id:'pa',name:'PROTEINA ANIMAL',csm:'CR',tier:'Elite',arr:1006000,child_account:false,current_sentiment:'Green',new_sentiment:'Green',upcoming_renewal_date:'2026-09-30',value_cycle:'Launch',safety:'Testing',fleet_security:'NA',fuel:'NA',maintenance:'NA',utilization:'NA',compliance:'NA',routing:'NA',personas:true,goals_defined:true,priority_next_program:'Fuel',products:['Video Safety','Vehicle Telematics'],notes:'Strong safety adoption. Expand to fuel next cycle.'},
+  {id:'tr',name:'TROPPER',csm:'CR',tier:'Elite',arr:702000,child_account:false,current_sentiment:'Green',new_sentiment:'Green',upcoming_renewal_date:'2026-11-15',value_cycle:'Launch',safety:'Testing',fleet_security:'NA',fuel:'Implementing',maintenance:'NA',utilization:'NA',compliance:'NA',routing:'NA',personas:true,goals_defined:true,priority_next_program:'Fuel',products:['Video Safety','Vehicle Telematics'],notes:'Fuel program early implementation. Safety in testing.'},
+  {id:'ad',name:'AGUILAS DEL DESIERTO',csm:'CR',tier:'Elite',arr:714000,child_account:false,current_sentiment:'Green',new_sentiment:'Green',upcoming_renewal_date:'2027-01-20',value_cycle:'Develop',safety:'NA',fleet_security:'NA',fuel:'Launch',maintenance:'NA',utilization:'NA',compliance:'NA',routing:'NA',personas:true,goals_defined:true,priority_next_program:'Safety',products:['Vehicle Telematics'],notes:'Fuel program leading. Safety next priority.'},
+  {id:'tf',name:'TRANSPORTES FEMA',csm:'CR',tier:'Premier',arr:571000,child_account:false,current_sentiment:'Green',new_sentiment:'Green',upcoming_renewal_date:'2026-12-30',value_cycle:'Develop',safety:'NA',fleet_security:'NA',fuel:'NA',maintenance:'NA',utilization:'NA',compliance:'NA',routing:'NA',personas:false,goals_defined:true,priority_next_program:'Safety',products:['Vehicle Telematics'],notes:'No programs active yet. Safety scoped for Q3.'},
+  {id:'ap',name:'AUTOTRANSPORTES PILOT',csm:'CR',tier:'Premier',arr:386459,child_account:false,current_sentiment:'Red',new_sentiment:'Red',upcoming_renewal_date:'2026-07-15',value_cycle:'Testing',safety:'NA',fleet_security:'NA',fuel:'NA',maintenance:'NA',utilization:'NA',compliance:'NA',routing:'NA',personas:false,goals_defined:false,priority_next_program:'Safety',products:['Vehicle Telematics'],notes:'At risk - no programs active. Needs executive alignment.'},
+  {id:'qa',name:'QUALTIA ALIMENTOS',csm:'CR',tier:'Premier',arr:550000,child_account:false,current_sentiment:'Yellow',new_sentiment:'Green',upcoming_renewal_date:'2027-02-28',value_cycle:'Launch',safety:'NA',fleet_security:'NA',fuel:'NA',maintenance:'NA',utilization:'NA',compliance:'NA',routing:'NA',personas:true,goals_defined:true,priority_next_program:'Safety',products:['Video Safety','Vehicle Telematics'],notes:'Sentiment improving Yellow to Green. Kick-off Q3.'},
+  {id:'gc',name:'GCC TRANSPORTE',csm:'CR',tier:'Premier',arr:164000,child_account:false,current_sentiment:'Green',new_sentiment:'Green',upcoming_renewal_date:'2026-10-30',value_cycle:'Launch',safety:'Testing',fleet_security:'NA',fuel:'NA',maintenance:'NA',utilization:'NA',compliance:'NA',routing:'NA',personas:true,goals_defined:true,priority_next_program:'Fuel',products:['Video Safety','Vehicle Telematics'],notes:'Safety in testing. Small account with strong engagement.'},
+  {id:'au',name:'ARRENDADORA UMX',csm:'CR',tier:'Premier',arr:431000,child_account:false,current_sentiment:'Green',new_sentiment:'Green',upcoming_renewal_date:'2026-12-15',value_cycle:'Launch',safety:'Launch',fleet_security:'NA',fuel:'NA',maintenance:'Testing',utilization:'NA',compliance:'NA',routing:'NA',personas:true,goals_defined:true,priority_next_program:'Fuel',products:['Vehicle Telematics','Driver Workflow'],notes:'Safety at launch. Maintenance testing. Strong partnership.'},
+  {id:'pp',name:'PUNTO A PUNTO T2',csm:'CR',tier:'Premier',arr:257975,child_account:false,current_sentiment:'Yellow',new_sentiment:'Yellow',upcoming_renewal_date:'2026-08-10',value_cycle:'NA',safety:'NA',fleet_security:'NA',fuel:'NA',maintenance:'NA',utilization:'NA',compliance:'NA',routing:'NA',personas:false,goals_defined:false,priority_next_program:'Safety',products:['Vehicle Telematics'],notes:'No value programs defined. Yellow risk. Needs QBR.'},
 ];
 
 // ── STATE ─────────────────────────────────────────────────
@@ -303,6 +314,19 @@ function pill(s){if(!s||s==='NA')return'<span style="color:#D1D5DB;font-size:11p
 function toast(m){clearTimeout(toastT);const e=document.getElementById('toast');e.textContent=m;e.classList.add('show');toastT=setTimeout(()=>e.classList.remove('show'),3500);}
 function set(id,v){const e=document.getElementById(id);if(e)e.textContent=v;}
 function f2(n){return n.toFixed(2);}
+function expectedProgs(a){
+  const prods=Array.isArray(a.products)?a.products:(a.products?String(a.products).split(';').map(s=>s.trim()).filter(Boolean):[]);
+  const s=new Set();
+  prods.forEach(p=>{if(PROD_PROGRAMS[p])PROD_PROGRAMS[p].forEach(x=>s.add(x));});
+  return[...s];
+}
+function achievement(a){
+  const exp=expectedProgs(a);
+  if(!exp.length)return null;
+  const active=exp.filter(p=>a[p]&&a[p]!=='NA').length;
+  return{active,total:exp.length,pct:Math.round(active/exp.length*100),
+    prods:Array.isArray(a.products)?a.products:(a.products?String(a.products).split(';').map(s=>s.trim()).filter(Boolean):[])};
+}
 
 // ── COMPUTE ───────────────────────────────────────────────
 function filtered(){
@@ -445,12 +469,24 @@ function renderHM(f){
   const g=document.getElementById('hm-grid');
   let h='<div class="hm-hdr">Account</div>';
   PROG_LBL.forEach(l=>{h+=`<div class="hm-hdr">${l}</div>`;});
+  h+='<div class="hm-hdr" style="background:#EDE9FE;color:#5B21B6;">% Achievement</div>';
   s.forEach(a=>{
     h+=`<div class="hm-acc"><div class="hm-an">${esc(a.name)}</div><div class="hm-ar">${fmt(a.arr)}</div></div>`;
     PROGS.forEach((p,pi)=>{
       const st=a[p]||'NA',c=SS[st]||SS.NA,tip=a.name+'|'+PROG_LBL[pi]+'|'+st+'|'+(a.notes||'').substring(0,80);
       h+=`<div class="hm-cell" style="background:${c.bg};color:${c.tx};" data-tip="${esc(tip)}">${st==='NA'?'&#8212;':st}</div>`;
     });
+    // Achievement column
+    const ach=achievement(a);
+    if(!ach){
+      h+='<div class="hm-cell hm-ach" style="background:#F3F4F6;color:#9CA3AF;" data-tip="'+esc(a.name+'|Products|No products defined|Upload CSV with products column to enable')+'">—</div>';
+    }else{
+      const bg=ach.pct>=67?'#DCFCE7':ach.pct>=34?'#FEF9C3':'#FEE2E2';
+      const tx=ach.pct>=67?'#15803D':ach.pct>=34?'#92400E':'#B91C1C';
+      const prodStr=ach.prods.join(' + ')||'—';
+      const tip=a.name+'|Achievement: '+ach.pct+'%|'+ach.active+'/'+ach.total+' expected programs active|Products: '+prodStr;
+      h+=`<div class="hm-cell hm-ach" style="background:${bg};color:${tx};" data-tip="${esc(tip)}">${ach.pct}%</div>`;
+    }
   });
   g.innerHTML=h;
 }
@@ -542,7 +578,7 @@ function nTier(s){return({'elite':'Elite','premier':'Premier','plus':'Plus','sta
 function nStage(s){const m={'':'NA','na':'NA','n/a':'NA','none':'NA','implementing':'Implementing','impl':'Implementing','launch':'Launch','testing':'Testing','test':'Testing','develop':'Develop','dev':'Develop','development':'Develop','mature':'Mature','matured':'Mature','green':'Green','yellow':'Yellow','red':'Red'};return m[String(s||'').toLowerCase().trim()]||String(s||'NA');}
 function pBool(s){return['true','yes','1','y'].includes(String(s||'').toLowerCase().trim());}
 function slug(s){return String(s||'').toLowerCase().replace(/[^a-z0-9]+/g,'-').replace(/(^-|-$)/g,'');}
-const CM={'account name':'name','account':'name','csm':'csm','arr':'arr','arr ($)':'arr','tier':'tier','cs tier':'tier','upcoming renewal date':'upcoming_renewal_date','renewal date':'upcoming_renewal_date','renewal':'upcoming_renewal_date','current sentiment':'current_sentiment','new sentiment':'new_sentiment','sentiment':'new_sentiment','personas':'personas','goals':'goals_defined','goals defined':'goals_defined','value cycle':'value_cycle','safety':'safety','fleet security':'fleet_security','fleet_security':'fleet_security','fuel':'fuel','maintenance':'maintenance','utilization':'utilization','compliance':'compliance','routing':'routing','priority next program':'priority_next_program','priority':'priority_next_program','notes':'notes'};
+const CM={'account name':'name','account':'name','csm':'csm','arr':'arr','arr ($)':'arr','tier':'tier','cs tier':'tier','upcoming renewal date':'upcoming_renewal_date','renewal date':'upcoming_renewal_date','renewal':'upcoming_renewal_date','current sentiment':'current_sentiment','new sentiment':'new_sentiment','sentiment':'new_sentiment','personas':'personas','goals':'goals_defined','goals defined':'goals_defined','value cycle':'value_cycle','safety':'safety','fleet security':'fleet_security','fleet_security':'fleet_security','fuel':'fuel','maintenance':'maintenance','utilization':'utilization','compliance':'compliance','routing':'routing','priority next program':'priority_next_program','priority':'priority_next_program','products':'products','product family':'products','product families':'products','notes':'notes'};
 function parseCSV(txt){
   txt=txt.replace(/^﻿/,'');
   const lines=txt.split(/\r\n|\r|\n/).filter(l=>l.trim());
@@ -552,7 +588,8 @@ function parseCSV(txt){
     const cells=parseLine(lines[i]),raw={};
     fm.forEach((f,idx)=>{if(f)raw[f]=(cells[idx]||'').trim();});
     if(!raw.name&&!raw.arr)continue;
-    out.push({id:slug(raw.name||'r'+i),name:raw.name||'Unknown',csm:raw.csm||'',tier:nTier(raw.tier),arr:pARR(raw.arr),child_account:pBool(raw.child_account),current_sentiment:nStage(raw.current_sentiment)||'Green',new_sentiment:nStage(raw.new_sentiment||raw.current_sentiment)||'Green',upcoming_renewal_date:raw.upcoming_renewal_date||'NA',value_cycle:nStage(raw.value_cycle)||'NA',safety:nStage(raw.safety)||'NA',fleet_security:nStage(raw.fleet_security)||'NA',fuel:nStage(raw.fuel)||'NA',maintenance:nStage(raw.maintenance)||'NA',utilization:nStage(raw.utilization)||'NA',compliance:nStage(raw.compliance)||'NA',routing:nStage(raw.routing)||'NA',personas:pBool(raw.personas),goals_defined:pBool(raw.goals_defined),priority_next_program:raw.priority_next_program||'',notes:raw.notes||''});
+    const prods=raw.products?raw.products.split(';').map(s=>s.trim()).filter(Boolean):[];
+    out.push({id:slug(raw.name||'r'+i),name:raw.name||'Unknown',csm:raw.csm||'',tier:nTier(raw.tier),arr:pARR(raw.arr),child_account:pBool(raw.child_account),current_sentiment:nStage(raw.current_sentiment)||'Green',new_sentiment:nStage(raw.new_sentiment||raw.current_sentiment)||'Green',upcoming_renewal_date:raw.upcoming_renewal_date||'NA',value_cycle:nStage(raw.value_cycle)||'NA',safety:nStage(raw.safety)||'NA',fleet_security:nStage(raw.fleet_security)||'NA',fuel:nStage(raw.fuel)||'NA',maintenance:nStage(raw.maintenance)||'NA',utilization:nStage(raw.utilization)||'NA',compliance:nStage(raw.compliance)||'NA',routing:nStage(raw.routing)||'NA',personas:pBool(raw.personas),goals_defined:pBool(raw.goals_defined),priority_next_program:raw.priority_next_program||'',products:prods,notes:raw.notes||''});
   }
   if(!out.length)throw new Error('No valid rows found');
   return out;
@@ -565,8 +602,8 @@ document.getElementById('fu').addEventListener('change',function(e){
 });
 function exportCSV(){
   const f=sortA([...filtered()],ST.sc,ST.sd);
-  const cols=['Account Name','CSM','ARR','Tier','Renewal Date','Sentiment','Value Cycle','Safety','Fleet Security','Fuel','Maintenance','Utilization','Compliance','Routing','Programs Active','Goals Defined','Personas','Priority Next','Notes'];
-  const rows=f.map(a=>[a.name,a.csm,a.arr,a.tier,a.upcoming_renewal_date,sent(a),a.value_cycle,a.safety,a.fleet_security,a.fuel,a.maintenance,a.utilization,a.compliance,a.routing,pc(a),a.goals_defined,a.personas,a.priority_next_program,a.notes].map(v=>`"${String(v==null?'':v).replace(/"/g,'""')}"`));
+  const cols=['Account Name','CSM','ARR','Tier','Renewal Date','Sentiment','Value Cycle','Products','Safety','Fleet Security','Fuel','Maintenance','Utilization','Compliance','Routing','Programs Active','Achievement %','Goals Defined','Personas','Priority Next','Notes'];
+  const rows=f.map(a=>{const ach=achievement(a);return[a.name,a.csm,a.arr,a.tier,a.upcoming_renewal_date,sent(a),a.value_cycle,(Array.isArray(a.products)?a.products:[]).join(';'),a.safety,a.fleet_security,a.fuel,a.maintenance,a.utilization,a.compliance,a.routing,pc(a),ach?ach.pct+'%':'—',a.goals_defined,a.personas,a.priority_next_program,a.notes].map(v=>`"${String(v==null?'':v).replace(/"/g,'""')}"`);});
   const csv=[cols.join(','),...rows.map(r=>r.join(','))].join('\n');
   const url=URL.createObjectURL(new Blob([csv],{type:'text/csv'}));
   const a=document.createElement('a');a.href=url;a.download=`value-dashboard-${new Date().toISOString().slice(0,10)}.csv`;
